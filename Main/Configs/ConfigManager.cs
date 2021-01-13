@@ -1,0 +1,142 @@
+﻿using DSharpPlus;
+using DSharpPlus.CommandsNext;
+using DSharpPlus.Entities;
+using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using System;
+using System.Collections.Generic;
+using System.Collections.Immutable;
+using System.IO;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace LOSCKeeper.Main
+{
+    public class ConfigManager
+    {
+        Dictionary<NotifyChannelType, DiscordChannel> notifyingChannels = new Dictionary<NotifyChannelType, DiscordChannel>();
+        
+        ConfigJson defaultConfig;
+
+        /// <summary>
+        /// Method should execute after client gets bot config
+        /// </summary>
+        /// <param name="c"></param>
+        public async Task CreateAsync(DiscordClient c)
+        {
+            var g = await GetDefaultGuild(c);
+            await AssignKnownChannelsAsync(g);
+
+        }
+        public async Task SetNotifyChannel(NotifyChannelType type, DiscordChannel channel)
+        {
+            string fileName = DefaultProperties.FILENAME;
+            string file = await File.ReadAllTextAsync(fileName);
+            JObject json = new JObject();
+            try
+            {
+                json = JObject.Parse(file);
+                json[type.ToString()] = channel.Id;
+            }
+            catch
+            {
+
+                json.Add(type.ToString(), channel.Id);
+            }
+            notifyingChannels[type] = channel;
+            await File.WriteAllTextAsync(fileName, json.ToString());
+            await channel.SendMessageAsync($"Успешно установлен как канал типа {type}");
+        }
+        #region Getters
+        public async Task<DiscordGuild> GetDefaultGuild(DiscordClient c)
+        {
+            return await c.GetGuildAsync(defaultConfig.GuildId);
+        }
+        
+
+        public async Task<DiscordConfiguration> GetBotConfigAsync()
+        {
+            await AssignDefaultConfig(); 
+
+            return new DiscordConfiguration()
+            {
+                Token = defaultConfig.Token,
+                TokenType = TokenType.Bot,
+                AutoReconnect = true,
+                MinimumLogLevel = LogLevel.Debug,
+                MessageCacheSize = 131072,
+
+            };
+        }
+        public CommandsNextConfiguration GetCommandsConfig()
+        {
+            var commandsConfig = new CommandsNextConfiguration
+            {
+                StringPrefixes = new string[] { defaultConfig.Prefix },
+                EnableDms = false, //direct messages(Not in channel chat)
+                EnableMentionPrefix = true,
+                DmHelp = true
+            };
+            return commandsConfig;
+        }
+
+        #endregion
+        public DiscordChannel GetNotifyChannel(NotifyChannelType type)
+        {
+            DiscordChannel c;
+            notifyingChannels.TryGetValue(type, out c);
+            return c;
+        }
+        #region Private Methods
+        private async Task AssignDefaultConfig()
+        {
+            var json = string.Empty;
+
+            using (var fs = File.OpenRead("config.json"))
+            using (var sr = new StreamReader(fs, new UTF8Encoding(false)))
+                json = await sr.ReadToEndAsync().ConfigureAwait(false);
+
+            defaultConfig = JsonConvert.DeserializeObject<ConfigJson>(json);
+
+            
+        }
+        private async Task AssignKnownChannelsAsync(DiscordGuild guild)
+        {
+            foreach (var cType in (NotifyChannelType[])Enum.GetValues(typeof(NotifyChannelType)))
+            {
+                DiscordChannel channel;
+                notifyingChannels.TryGetValue(cType, out channel);
+
+
+                string file = await File.ReadAllTextAsync(DefaultProperties.FILENAME);
+                JObject json = null;
+                try
+                {
+                    json = JObject.Parse(file);
+                }
+                catch
+                {
+                    Console.WriteLine("Неверное форматирование json Config'а, попробуйте почистить файл или обратиться к автору бота");
+                }
+
+                var cId = json[cType.ToString()]?.ToString();
+                if (cId == null || cId == "")
+                {
+                    Console.WriteLine($"Стандартный канал типа {cType} не задан, используйте команду !set{cType}");
+                    return;
+
+                }
+                channel = guild.GetChannel(Convert.ToUInt64(cId));
+                if (channel == null)
+                {
+                    Console.WriteLine($"Конфиг содержит неверное ID канала типа {cType}, попробуйте переназначить с помощью команды !set{cType}");
+                    return;
+                }
+                notifyingChannels[cType] = channel;
+
+            }
+        }
+        #endregion
+    }
+}

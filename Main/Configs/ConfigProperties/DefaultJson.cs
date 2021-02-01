@@ -5,7 +5,7 @@ using System.Text;
 
 namespace LOSCKeeper
 {
-    struct ConfigJson
+    struct DefaultJson
     {
         [JsonProperty("token")]
         public string Token { get; private set; }

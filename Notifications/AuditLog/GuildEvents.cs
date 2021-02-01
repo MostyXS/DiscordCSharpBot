@@ -63,8 +63,6 @@ namespace LOSCKeeper
             c.InviteCreated += InviteCreated; //Done 100% //Should implement invite system
             c.InviteDeleted += InviteDeleted; //Done 100%
 
-           
-
         }
 
         #region Guild Actions
@@ -309,7 +307,7 @@ namespace LOSCKeeper
         #region Message Actions
         private async Task MessageUpdated(DiscordClient sender, MessageUpdateEventArgs e)
         {
-            if (e.Author.IsBot) return;
+            if (e.Author == null || e.Author.IsBot) return;
             entryBuilder = new DiscordEmbedBuilder
             {
                 Author = new DiscordEmbedBuilder.EmbedAuthor { Name = e.Author.Username, IconUrl = e.Author.AvatarUrl },
@@ -327,10 +325,10 @@ namespace LOSCKeeper
 
         private async Task MessageDeleted(DiscordClient sender, MessageDeleteEventArgs e)
         {
+            
             var mdEntry = await GetNewEntryAsync() as DiscordAuditLogMessageEntry;
             var msg = e.Message;
             bool isSelfDelete = mdEntry == null;
-
             if (msg?.Author == null) //Происходит при перезапуске бота или если сообщение устарело //msg !=null is not working properly
             {
                 string user = isSelfDelete ? "" : ", Удаливший: " + mdEntry.UserResponsible.Mention;

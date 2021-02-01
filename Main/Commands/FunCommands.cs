@@ -21,10 +21,11 @@ namespace LOSCKeeper.Commands
             await ctx.Channel.SendMessageAsync(ctx.Guild.Id.ToString());
         }
 
+       
+
         [Command("ping")]
         [Description("Returns pong")]
-        [RequireCategories(ChannelCheckMode.Any, "Text channels")]
-        public async Task Ping(CommandContext ctx)
+        public async Task Ping(CommandContext ctx, DiscordRole role, DiscordEmoji emoji  )
         {
             await ctx.Channel.SendMessageAsync("Pong").ConfigureAwait(false);
             

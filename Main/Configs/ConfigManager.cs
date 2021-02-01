@@ -6,7 +6,6 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
-using System.Collections.Immutable;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
@@ -15,9 +14,9 @@ namespace LOSCKeeper.Main
 {
     public class ConfigManager
     {
-        Dictionary<NotifyChannelType, DiscordChannel> notifyingChannels = new Dictionary<NotifyChannelType, DiscordChannel>();
+        Dictionary<NotifyChannelType, DiscordChannel> notifyChannels = new Dictionary<NotifyChannelType, DiscordChannel>();
         
-        ConfigJson defaultConfig;
+        DefaultJson defaultConfig;
 
         /// <summary>
         /// Method should execute after client gets bot config
@@ -31,7 +30,7 @@ namespace LOSCKeeper.Main
         }
         public async Task SetNotifyChannel(NotifyChannelType type, DiscordChannel channel)
         {
-            string fileName = DefaultProperties.FILENAME;
+            string fileName = ConfigNames.DEFAULT;
             string file = await File.ReadAllTextAsync(fileName);
             JObject json = new JObject();
             try
@@ -44,7 +43,7 @@ namespace LOSCKeeper.Main
 
                 json.Add(type.ToString(), channel.Id);
             }
-            notifyingChannels[type] = channel;
+            notifyChannels[type] = channel;
             await File.WriteAllTextAsync(fileName, json.ToString());
             await channel.SendMessageAsync($"Успешно установлен как канал типа {type}");
         }
@@ -61,6 +60,7 @@ namespace LOSCKeeper.Main
 
             return new DiscordConfiguration()
             {
+                
                 Token = defaultConfig.Token,
                 TokenType = TokenType.Bot,
                 AutoReconnect = true,
@@ -85,7 +85,7 @@ namespace LOSCKeeper.Main
         public DiscordChannel GetNotifyChannel(NotifyChannelType type)
         {
             DiscordChannel c;
-            notifyingChannels.TryGetValue(type, out c);
+            notifyChannels.TryGetValue(type, out c);
             return c;
         }
         #region Private Methods
@@ -97,7 +97,7 @@ namespace LOSCKeeper.Main
             using (var sr = new StreamReader(fs, new UTF8Encoding(false)))
                 json = await sr.ReadToEndAsync().ConfigureAwait(false);
 
-            defaultConfig = JsonConvert.DeserializeObject<ConfigJson>(json);
+            defaultConfig = JsonConvert.DeserializeObject<DefaultJson>(json);
 
             
         }
@@ -106,10 +106,10 @@ namespace LOSCKeeper.Main
             foreach (var cType in (NotifyChannelType[])Enum.GetValues(typeof(NotifyChannelType)))
             {
                 DiscordChannel channel;
-                notifyingChannels.TryGetValue(cType, out channel);
+                notifyChannels.TryGetValue(cType, out channel);
 
 
-                string file = await File.ReadAllTextAsync(DefaultProperties.FILENAME);
+                string file = await File.ReadAllTextAsync(ConfigNames.DEFAULT);
                 JObject json = null;
                 try
                 {
@@ -133,7 +133,7 @@ namespace LOSCKeeper.Main
                     Console.WriteLine($"Конфиг содержит неверное ID канала типа {cType}, попробуйте переназначить с помощью команды !set{cType}");
                     return;
                 }
-                notifyingChannels[cType] = channel;
+                notifyChannels[cType] = channel;
 
             }
         }

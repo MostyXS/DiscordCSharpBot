@@ -1,8 +1,7 @@
 ﻿using System;
 using System.Text;
-using System.Threading.Tasks;
 
-namespace LOSCKeeper
+namespace LOSCKeeper.Main
 {
     class Start
     {

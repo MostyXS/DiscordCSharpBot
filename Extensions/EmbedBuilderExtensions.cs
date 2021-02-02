@@ -53,7 +53,7 @@ namespace LOSCKeeper.Extensions
             builder.Author = new DiscordEmbedBuilder.EmbedAuthor()
             {
                 IconUrl = user.AvatarUrl,
-                Name = user.Mention
+                Name = user.Username
             };
         }
         public static void SetDescription(this DiscordEmbedBuilder builder , string desc)

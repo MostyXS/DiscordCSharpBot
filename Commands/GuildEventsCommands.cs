@@ -10,6 +10,7 @@ namespace LOSCKeeper.Commands
     class GuildEventsCommands : BaseCommandModule
     {
         [Command("setAudit")]
+        [Description("Выставляет текущий канал в качестве канала аудита")]
         public async Task SetDefaultAuditLogChannel(CommandContext ctx)
         {
             var core = Core.Instance;
@@ -25,6 +26,7 @@ namespace LOSCKeeper.Commands
         }*/
 
         [Command("clear")]
+        [Description("Удаляет канал и создаёт его клон, может быть использована только главой гильдии")]
         public async Task Clear(CommandContext ctx)
         {
             if (!ctx.Member.IsOwner) return;

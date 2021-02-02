@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "hv7IrIVArccacmDjPlN8IKLT7kJZhl6J+RV4To/F9eDfrV0uF2RXcavZQc/telIG0KVLZXPvZOciUJ0WZl9yfw==",
+  "dgSpecHash": "s6mxtn8nqKEhfvIzSWBYlKl5MlLS7PPp0GuPyB27cPQGQteyzOVrIWFSAjdCSq4IBDEqaLwzEymDDkQBUmv2/A==",
   "success": true,
-  "projectFilePath": "C:\\Users\\Mosty\\Desktop\\LOSCKeeper\\LOSCKeeper.csproj",
+  "projectFilePath": "C:\\Users\\Mosty\\Desktop\\Compact Desktop\\Projects\\LOSCKeeper\\LOSCKeeper.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\Mosty\\.nuget\\packages\\concurrenthashset\\1.1.0\\concurrenthashset.1.1.0.nupkg.sha512",
     "C:\\Users\\Mosty\\.nuget\\packages\\dsharpplus\\4.0.0-rc1\\dsharpplus.4.0.0-rc1.nupkg.sha512",

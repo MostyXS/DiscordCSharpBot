@@ -27,7 +27,6 @@ namespace LOSCKeeper.Main
        
         public async Task MainAsync()
         {
-
             Instance = this;
 
             Client = new DiscordClient(await ConfigManager.GetBotConfigAsync());
@@ -49,15 +48,16 @@ namespace LOSCKeeper.Main
 
         private async Task SubscribeToeventHandlers()
         {
-            var auditChannel = ConfigManager.GetNotifyChannel(NotifyChannelType.Audit);
             var defaultGuild = await ConfigManager.GetDefaultGuild(Client);
 
-            var streamNotifyChannel = ConfigManager.GetNotifyChannel(NotifyChannelType.Stream);
-
-            StreamNotifier = new StreamNotifier(defaultGuild, streamNotifyChannel, Client);
             RoleGranter = new RoleGranter(Client, defaultGuild);
-            await RoleGranter.TryInitialize();
-            
+            await RoleGranter.TryInitializeAsync();
+
+            var streamNotifyChannel = ConfigManager.GetNotifyChannel(NotifyChannelType.Stream);
+            StreamNotifier = new StreamNotifier(Client, defaultGuild, streamNotifyChannel);
+            await StreamNotifier.TryInitializeAsync();
+
+            var auditChannel = ConfigManager.GetNotifyChannel(NotifyChannelType.Audit);
             GuildEvents = new GuildEvents(auditChannel, defaultGuild);
             GuildEvents.SubscribeToGuildEvents(Client);
         }

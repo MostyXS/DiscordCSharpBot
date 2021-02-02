@@ -45,7 +45,9 @@ namespace LOSCKeeper.Main
             }
             notifyChannels[type] = channel;
             await File.WriteAllTextAsync(fileName, json.ToString());
-            await channel.SendMessageAsync($"Успешно установлен как канал типа {type}");
+            var msg = await channel.SendMessageAsync($"Успешно установлен как канал типа {type}");
+            await Task.Delay(TimeSpan.FromSeconds(5));
+            await msg.DeleteAsync();
         }
         #region Getters
         public async Task<DiscordGuild> GetDefaultGuild(DiscordClient c)

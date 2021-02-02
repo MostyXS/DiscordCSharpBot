@@ -318,7 +318,6 @@ namespace LOSCKeeper
                 e.MessageBefore.Content :
                 "Информация о старом содержании некэширована";
             entryBuilder.AddBeforeAfter("Содержание", oldContent, e.Message.Content);
-
             entryBuilder.AddField("Прямая ссылка", e.Message.JumpLink.AbsoluteUri);
             await SendMessageToAuditAsync(embed: entryBuilder);
         }
@@ -331,11 +330,12 @@ namespace LOSCKeeper
             bool isSelfDelete = mdEntry == null;
             if (msg?.Author == null) //Происходит при перезапуске бота или если сообщение устарело //msg !=null is not working properly
             {
+                
                 string user = isSelfDelete ? "" : ", Удаливший: " + mdEntry.UserResponsible.Mention;
                 await SendMessageToAuditAsync(content: $"Некэшированое сообщение удалено в канале " + e.Channel.Name + user);
                 return;
             }
-
+            if (msg.Author.IsBot) return;
             DiscordEmbedBuilder entryBuilder = new DiscordEmbedBuilder();
             if (isSelfDelete)
             {

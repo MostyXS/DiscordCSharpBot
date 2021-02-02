@@ -9,11 +9,12 @@ using System.Threading.Tasks;
 
 namespace LOSCKeeper.Commands
 {
-    public class RoleGranter
+    public class RoleGranter 
     {
+        DiscordGuild defaultGuild;
+
         DiscordMessage rolesMessage;
         Dictionary<string, DiscordRole> rolesFromEmojis = new Dictionary<string, DiscordRole>();
-        DiscordGuild defaultGuild;
 
         public RoleGranter(DiscordClient c, DiscordGuild defaultGuild)
         {
@@ -21,37 +22,12 @@ namespace LOSCKeeper.Commands
             c.MessageReactionAdded += TryGrantRoleAsync;
             c.MessageReactionRemoved += TryRevokeRoleAsync;
         }
-        private async Task TryGrantRoleAsync(DiscordClient sender, MessageReactionAddEventArgs e)
-        {
-            var member = await defaultGuild.GetMemberAsync(e.User.Id);
-            if (member == null || member.IsBot) return;
-            DiscordRole role;
-            if (!TryGetReactionRole(e.Message, e.Emoji.Name, out role)) return;
-            await member.GrantRoleAsync(role);
-        }
-        private async Task TryRevokeRoleAsync(DiscordClient sender, MessageReactionRemoveEventArgs e)
-        {
-            
-            var member = await defaultGuild.GetMemberAsync(e.User.Id);
-            if (member == null) return;
-            DiscordRole role;
-            if (!TryGetReactionRole(e.Message, e.Emoji.Name, out role)) return;
-            await member.RevokeRoleAsync(role);
-        }
 
-        
-        private bool TryGetReactionRole(DiscordMessage msg, string emjName, out DiscordRole role)
-        {
-            role = null;
-            if (msg.Id != rolesMessage?.Id) return false;
-            if (!rolesFromEmojis.TryGetValue(emjName, out role)) return false;
-            return role != null;
-        }
-
+        #region Commands
         public async Task CreateRoleMessageAsync(DiscordChannel channel, string title, string description, string rolesFieldName, string footer)
         {
             string rolesFieldValue = "Empty";
-            if(rolesMessage != null)
+            if (rolesMessage != null)
             {
                 rolesFieldValue = rolesMessage.Embeds[0].Fields[0].Value;
                 await rolesMessage.DeleteAsync();
@@ -60,39 +36,29 @@ namespace LOSCKeeper.Commands
             {
                 Title = title,
                 Description = description,
-               
+
             };
             embedBuilder.AddField(rolesFieldName, rolesFieldValue);
 
             embedBuilder.AddField(footer, "_ _", true);
             var msg = await channel.SendMessageAsync(embed: embedBuilder);
             rolesMessage = msg;
-            await Save();
+            await SaveAsync();
         }
 
-        public async Task Reset()
+        public async Task<RoleAddResult> TryAddRoleByEmoji(DiscordRole role, DiscordEmoji emoji, string description)
         {
-            rolesFromEmojis = new Dictionary<string, DiscordRole>();
-            if(rolesMessage != null)
-            {
-                await rolesMessage.DeleteAsync();
-                rolesMessage = null;
-            }
-            await Save();
-        }
+            if (rolesMessage == null) return RoleAddResult.NoMessage;
 
-        public async Task<bool> AddRoleByEmoji(DiscordRole role, DiscordEmoji emoji, string description)
-        {
-            if (rolesMessage == null) return false;
-
-            if (rolesFromEmojis.ContainsValue(role)) return false;
+            if (rolesFromEmojis.ContainsValue(role)) return RoleAddResult.AlreadyHasRole;
+            else if (rolesFromEmojis.ContainsKey(emoji)) return RoleAddResult.AlreadyHasEmoji;
             rolesFromEmojis.Add(emoji.Name, role);
 
             var oldEmbed = rolesMessage.Embeds[0];
             DiscordEmbedBuilder builder = new DiscordEmbedBuilder(oldEmbed);
             var rolesField = builder.Fields[0];
 
-            if(rolesField.Value.Equals("Empty"))
+            if (rolesField.Value.Equals("Empty"))
             {
                 rolesField.Value = $"{role.Mention} - {emoji} - {description}";
             }
@@ -102,12 +68,9 @@ namespace LOSCKeeper.Commands
             }
             await rolesMessage.ModifyAsync(embed: builder.Build());
             await rolesMessage.CreateReactionAsync(emoji);
-            await Save();
-            return true;
-
-
+            await SaveAsync();
+            return RoleAddResult.Succeed;
         }
-
         public async Task ChangeEmbedAsync(string title = null, string description = null, string rfName = null, string footer = null)
         {
             if (rolesMessage == null) return;
@@ -116,12 +79,53 @@ namespace LOSCKeeper.Commands
             embedBuilder.Title = title != null ? title : embedBuilder.Title;
             embedBuilder.Description = description != null ? description : embedBuilder.Description;
             embedBuilder.Fields[0].Name = rfName != null ? rfName : embedBuilder.Fields[0].Name;
-            embedBuilder.Fields[1].Name = footer != null ?footer : embedBuilder.Fields[1].Name;
+            embedBuilder.Fields[1].Name = footer != null ? footer : embedBuilder.Fields[1].Name;
             await rolesMessage.ModifyAsync(embed: embedBuilder.Build());
-            await Save();
-            
         }
-        public async Task TryInitialize()
+
+        public async Task Reset()
+        {
+            rolesFromEmojis = new Dictionary<string, DiscordRole>();
+            if (rolesMessage != null)
+            {
+                await rolesMessage.DeleteAsync();
+                rolesMessage = null;
+            }
+            await SaveAsync();
+        }
+        #endregion
+
+        #region Events
+        private async Task TryGrantRoleAsync(DiscordClient sender, MessageReactionAddEventArgs e)
+        {
+            var member = await defaultGuild.GetMemberAsync(e.User.Id);
+            if (member == null || member.IsBot) return;
+            DiscordRole role;
+            if (!TryGetReactionRole(e.Message, e.Emoji.Name, out role)) return;
+            await member.GrantRoleAsync(role);
+        }
+
+        private async Task TryRevokeRoleAsync(DiscordClient sender, MessageReactionRemoveEventArgs e)
+        {
+            
+            var member = await defaultGuild.GetMemberAsync(e.User.Id);
+            if (member == null) return;
+            DiscordRole role;
+            if (!TryGetReactionRole(e.Message, e.Emoji.Name, out role)) return;
+            await member.RevokeRoleAsync(role);
+        }
+        
+        private bool TryGetReactionRole(DiscordMessage msg, string emjName, out DiscordRole role)
+        {
+            role = null;
+            if (msg.Id != rolesMessage?.Id) return false;
+            if (!rolesFromEmojis.TryGetValue(emjName, out role)) return false;
+            return role != null;
+        }
+        #endregion
+
+        #region ConfigManagement
+        public async Task TryInitializeAsync()
         {
             try
             {
@@ -150,8 +154,7 @@ namespace LOSCKeeper.Commands
             {
             }
         }
-
-        private async Task Save()
+        private async Task SaveAsync()
         {
             
             Dictionary<string, ulong> rawRolesDictionary = new Dictionary<string, ulong>();
@@ -170,5 +173,7 @@ namespace LOSCKeeper.Commands
             await File.WriteAllTextAsync(ConfigNames.ROLEGRANTER, json);
 
         }
+        #endregion
+        
     }
 }

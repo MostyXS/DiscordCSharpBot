@@ -19,5 +19,17 @@ namespace LOSCKeeper.Extensions
         {
             return !string.IsNullOrEmpty(s);
         }
+
+        /// <summary>
+        /// Отправляет сообщение и удаляет через 5 секунд, только для сообщений с контентом
+        /// </summary>
+        /// <param name="c"></param>
+        /// <returns></returns>
+        public static async Task SendTempMessageAsync(this DiscordChannel c, string content)
+        {
+            var msg = await c.SendMessageAsync(content);
+            await Task.Delay(TimeSpan.FromSeconds(5));
+            await msg.DeleteAsync();
+        }
     }
 }

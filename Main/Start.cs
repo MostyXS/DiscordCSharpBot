@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Text;
 
-namespace LOSCKeeper.Main
+namespace LSSKeeper.Main
 {
     class Start
     {

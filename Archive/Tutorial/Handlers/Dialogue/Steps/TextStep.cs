@@ -4,7 +4,7 @@ using DSharpPlus.Interactivity.Extensions;
 using System;
 using System.Threading.Tasks;
 
-namespace LOSCKeeper.Handlers.Dialogue.Steps
+namespace LSSKeeper.Handlers.Dialogue.Steps
 {
     class TextStep : DialogueStepBase
     {

@@ -1,17 +1,16 @@
 ﻿using DSharpPlus.CommandsNext;
 using DSharpPlus.CommandsNext.Attributes;
 using DSharpPlus.Entities;
-using LOSCKeeper.Extensions;
-using LOSCKeeper.Main;
-using System;
-using System.Collections.Generic;
-using System.Text;
+using LSSKeeper.Extensions;
+using LSSKeeper.Main;
 using System.Threading.Tasks;
 
-namespace LOSCKeeper.Commands
+namespace LSSKeeper.Commands
 {
     class RoleGranterCommands : BaseCommandModule
     {
+        public static RoleGranter RG { private get; set; }
+
         #region Main Commands
         [Command("RGcreate")]
         [RequirePermissions(DSharpPlus.Permissions.ManageRoles)]
@@ -24,11 +23,11 @@ namespace LOSCKeeper.Commands
         {
             if(title == null || description == null)
             {
-                await ctx.Channel.SendTempMessageAsync("Неверное форматирование " +
+                await ctx.Channel.SendMessageAsync("Неверное форматирование " +
                     "!RGCreate \"Заголовок\" \"Описание\" \"Название поля с ролями\"(Необязательно) \"Футер\"(Необязательно");
                 return;
             }
-            await Core.Instance.RoleGranter.CreateRoleMessageAsync( ctx.Channel, title, description, rolesFieldName, footer);
+            await RG.CreateRoleMessageAsync(ctx, title, description, rolesFieldName, footer);
         }
 
         [RequireOwner]
@@ -36,7 +35,8 @@ namespace LOSCKeeper.Commands
         [Command("rgreset")]
         public async Task Reset(CommandContext ctx)
         {
-            await Core.Instance.RoleGranter.Reset();
+            await RG.Reset();
+            await ctx.Channel.SendTempMessageAsync("Done");
         }
 
 
@@ -46,25 +46,25 @@ namespace LOSCKeeper.Commands
             " обновляет если сообщение уже существует, то необходимости пересоздавать можно воспользоваться командами изменения")]
         public async Task AddRoleFromEmoji(CommandContext ctx, DiscordRole role = null, DiscordEmoji emoji = null, string description = null)
         {
-            var tempMessageContent = "Неверное форматирование !RGaddRole {Упоминание роли} {Эмоджи} \"Описание\"";
+            var tempMessageContent = "Неверное форматирование !RGaddRole {Упоминание роли через @} {Эмоджи} \"Описание\"(Без фигурных скобок)";
 
             if(role == null || emoji == null || description == null)
             {
-                await ctx.Channel.SendTempMessageAsync(tempMessageContent);
+                await ctx.Channel.SendMessageAsync(tempMessageContent);
                 return;
             }
-            await ctx.Message.DeleteAsync();
-            RoleAddResult result = await Core.Instance.RoleGranter.TryAddRoleByEmoji(role, emoji, description);
+            
+            RoleAddResult result = await RG.TryAddRoleAsync(ctx.Client, role, emoji, description);
             switch (result)
             {
                 case RoleAddResult.Succeed:
                     {
-                        tempMessageContent = "Роль успешно добавлена";
+                        tempMessageContent = "Роль успешно добавлена и готова для выдачи";
                         break;
                     }
-                case RoleAddResult.NoMessage:
+                case RoleAddResult.SucceedWithoutMessage:
                     {
-                        tempMessageContent = "Сообщение с ролями не установлено, используйте !RGCreate";
+                        tempMessageContent = "Роль успешно добавлена, для создания сообщения с выдачей используйте !rgcreate";
                         break;
                     }
                 case RoleAddResult.AlreadyHasEmoji:
@@ -80,6 +80,22 @@ namespace LOSCKeeper.Commands
             }
             await ctx.Channel.SendTempMessageAsync(tempMessageContent);
         }
+        [Command("RGremoveRole")]
+        public async Task RemoveRoleFromEmoji(CommandContext ctx, DiscordRole role)
+        {
+            if(role == null)
+            {
+                await ctx.Channel.SendMessageAsync("Неверное форматирование !RGremoveRole {Упоминание роли через @}(Без фигурных скобок)");
+            }
+            if(await RG.TryRemoveRoleAsync(ctx.Client, role))
+            {
+                await ctx.Channel.SendTempMessageAsync("Роль успешно удалена");
+            }
+            else
+            {
+                await ctx.Channel.SendTempMessageAsync("Такой роли нет в списке");
+            }
+        }
         #endregion
 
         #region Edit Commands
@@ -89,10 +105,10 @@ namespace LOSCKeeper.Commands
         {
             if (content == null)
             {
-                await ctx.Channel.SendTempMessageAsync("Неверное форматирование !RGchangeRFName \"Заголовок\"");
+                await ctx.Channel.SendMessageAsync("Неверное форматирование !RGchangeRFName \"Заголовок\"");
                 return;
             }
-            await Core.Instance.RoleGranter.ChangeEmbedAsync(title: content);
+            await RG.ChangeEmbedAsync(title: content);
         }
 
         [RequirePermissions(DSharpPlus.Permissions.ManageRoles)]
@@ -101,10 +117,10 @@ namespace LOSCKeeper.Commands
         {
             if (content == null)
             {
-                await ctx.Channel.SendTempMessageAsync("Неверное форматирование !RGchangeRFName \"Описание\"");
+                await ctx.Channel.SendMessageAsync("Неверное форматирование !RGchangeRFName \"Описание\"");
                 return;
             }
-            await Core.Instance.RoleGranter.ChangeEmbedAsync(description: content);
+            await RG.ChangeEmbedAsync(description: content);
         }
 
         [Description("Меняет заголовок поля с ролями")]
@@ -114,10 +130,10 @@ namespace LOSCKeeper.Commands
         {
             if(content == null)
             {
-                await ctx.Channel.SendTempMessageAsync("Неверное форматирование !RGchangeRFName \"Название поля с ролями\"");
+                await ctx.Channel.SendMessageAsync("Неверное форматирование !RGchangeRFName \"Название поля с ролями\"");
                 return;
             }
-            await Core.Instance.RoleGranter.ChangeEmbedAsync(rfName: content);
+            await RG.ChangeEmbedAsync(rfName: content);
         }
         
         [RequirePermissions(DSharpPlus.Permissions.ManageRoles)]
@@ -126,13 +142,12 @@ namespace LOSCKeeper.Commands
         {
             if (content == null)
             {
-                await ctx.Channel.SendTempMessageAsync("Неверное форматирование !RGchangeRFName \"Футер\"");
+                await ctx.Channel.SendMessageAsync("Неверное форматирование !RGchangeRFName \"Футер\"");
                 return;
             }
-            await Core.Instance.RoleGranter.ChangeEmbedAsync(footer: content);
+            await RG.ChangeEmbedAsync(footer: content);
         }
         #endregion
-
 
     }
 }

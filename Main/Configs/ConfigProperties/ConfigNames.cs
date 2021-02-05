@@ -1,4 +1,4 @@
-﻿namespace LOSCKeeper
+﻿namespace LSSKeeper
 {
     public struct ConfigNames
     {

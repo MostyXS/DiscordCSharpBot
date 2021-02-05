@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace LOSCKeeper.Attributes
+namespace LSSKeeper.Attributes
 {
     public enum ChannelCheckMode
     {

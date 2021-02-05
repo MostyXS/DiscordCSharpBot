@@ -2,12 +2,12 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace LOSCKeeper
+namespace LSSKeeper
 {
     public enum RoleAddResult
     {
         Succeed,
-        NoMessage,
+        SucceedWithoutMessage,
         AlreadyHasRole,
         AlreadyHasEmoji,
         Undefined

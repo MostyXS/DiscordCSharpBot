@@ -4,7 +4,7 @@ using DSharpPlus.Entities;
 using DSharpPlus.Interactivity.Extensions;
 using System.Threading.Tasks;
 
-namespace LOSCKeeper.Commands
+namespace LSSKeeper.Commands
 {
     class TeamCommands : BaseCommandModule
     {

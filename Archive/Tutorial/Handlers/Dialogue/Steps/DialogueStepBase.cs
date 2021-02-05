@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace LOSCKeeper.Handlers.Dialogue.Steps
+namespace LSSKeeper.Handlers.Dialogue.Steps
 {
     public abstract class DialogueStepBase : IDialogueStep
     {

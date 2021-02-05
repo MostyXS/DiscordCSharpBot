@@ -10,7 +10,7 @@ using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace LOSCKeeper.Main
+namespace LSSKeeper.Main
 {
     public class ConfigManager
     {

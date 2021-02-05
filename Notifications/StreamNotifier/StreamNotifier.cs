@@ -2,16 +2,15 @@
 using DSharpPlus.CommandsNext;
 using DSharpPlus.Entities;
 using DSharpPlus.EventArgs;
-using LOSCKeeper.Extensions;
+using LSSKeeper.Extensions;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
-namespace LOSCKeeper.Notifications
+namespace LSSKeeper.Notifications
 {
     public class StreamNotifier
     {
@@ -21,6 +20,7 @@ namespace LOSCKeeper.Notifications
 
         #region ConfigParams
         string defaultStartPhrase = string.Empty;
+        string defaultImageUrl = string.Empty;
         string defaultEndPhrase = string.Empty;
         public ulong streamerRoleId;
         Dictionary<ulong, StreamerInfo> streamersInfo = new Dictionary<ulong, StreamerInfo>();
@@ -39,8 +39,8 @@ namespace LOSCKeeper.Notifications
             var member = await defaultGuild.GetMemberAsync(e.User.Id);
             if (member == null || !member.Roles.Any((x) => x.Id == streamerRoleId)) return;
 
-            var presAfter = e.UserAfter.Presence;
-            var actTypeAfter = presAfter.Activity.ActivityType;
+            var pres = e.UserAfter.Presence;
+            var actTypeAfter = pres.Activity.ActivityType;
             string content;
 
             StreamerInfo info;
@@ -50,21 +50,20 @@ namespace LOSCKeeper.Notifications
             {
                 currentlyStreaming.Add(member.Id);
                 content = isInList && !string.IsNullOrEmpty(info.StartPhrase) ? info.StartPhrase : defaultStartPhrase;
+                var imageUrl = isInList && !string.IsNullOrEmpty(info.ImageUrl) ? info.ImageUrl : defaultImageUrl;
 
-                var actInfo = presAfter.Activity.RichPresence;
-                content.Replace("name", member.Username);
-                content.Replace("game", actInfo.Application.Name);
+                var actInfo = pres.Activity.RichPresence;
+                content = content.Replace("name", $"**{member.Username}**", StringComparison.OrdinalIgnoreCase);
+                content = content.Replace("game", $"**{actInfo.State}**", StringComparison.OrdinalIgnoreCase);
 
                 var embedBuilder = new DiscordEmbedBuilder();
                 embedBuilder.SetAuthor(member);
                 embedBuilder.SetTitle(actInfo.Details);
                 embedBuilder.AddField("Игра", actInfo.State);
+                embedBuilder.AddField("Ссылка", pres.Activity.StreamUrl);
+                embedBuilder.WithImageUrl(imageUrl);
 
-                if (actInfo.Application != null && actInfo.Application.CoverImageUrl != null)
-                    embedBuilder.ImageUrl = actInfo.Application.CoverImageUrl.ToString();
-                embedBuilder.AddField("Ссылка", presAfter.Activity.StreamUrl);
-
-                await NotifyChannel.SendMessageAsync(content, embed: embedBuilder);
+                await NotifyChannel.SendMessageAsync(content, embed: embedBuilder.Build());
 
             }
             else if (actTypeAfter != ActivityType.Streaming && currentlyStreaming.Contains(member.Id)) // If end streaming
@@ -72,7 +71,7 @@ namespace LOSCKeeper.Notifications
                 currentlyStreaming.Remove(member.Id);
                 content = isInList && !string.IsNullOrEmpty(info.EndPhrase) ? info.EndPhrase : defaultEndPhrase;
 
-                content.Replace("name", member.Username);
+                content = content.Replace("name", $"**{member.Username}**");
                 await NotifyChannel.SendMessageAsync(content);
             }
         }
@@ -83,54 +82,79 @@ namespace LOSCKeeper.Notifications
             streamerRoleId = role.Id;
             await SaveAsync();
         }
-        
-        public async Task SetStartPhrase(bool isDefault, string p, CommandContext ctx = null)
-        {
-            if (isDefault)
-            {
-                await ctx.Channel.SendTempMessageAsync($"Успешно установлена как стандартная фраза для начала стрима: \"{p}\"");
-                defaultStartPhrase = p;
-            }
-            else 
-            {
-                var member = ctx.Member;
-                if (member.Roles.Any((x) => x.Id == streamerRoleId))
-                {
-                    var memberId = member.Id;
-                    if (!streamersInfo.ContainsKey(member.Id))
-                    {
-                        streamersInfo.Add(memberId, new StreamerInfo());
-                    }
-                    var info = streamersInfo[memberId];
-                    info.StartPhrase = p;
-                    streamersInfo[memberId] = info;
-                    await ctx.Channel.SendTempMessageAsync($"Успешно установлена фраза для начала стрима: \"{p}\" у пользователя {ctx.Member.Mention}");
-                }
-            }
-            await SaveAsync();
-        }
 
-        public async Task SetEndPhrase(bool isDefault, string p, CommandContext ctx = null)
+        public async Task SetStreamerInfo(string content, StreamerInfoType infoType, CommandContext ctx)
         {
-            var member = ctx?.Member;
-            if (isDefault)
+
+            var member = ctx.Member;
+            if (!member.Roles.Any((x) => x.Id == streamerRoleId)) return;
+
+            var memberId = member.Id;
+            if (!streamersInfo.ContainsKey(memberId))
             {
-                await ctx.Channel.SendTempMessageAsync($"Успешно установлена как стандартная фраза для окончания стрима: \"{p}\"");
-                defaultEndPhrase = p;
+                streamersInfo.Add(memberId, new StreamerInfo());
             }
-            else if (member.Roles.Any((x) => x.Id == streamerRoleId))
+            string actionType = string.Empty;
+            var info = streamersInfo[memberId];
+            switch (infoType)
             {
-                var memberId = member.Id;
-                if (!streamersInfo.ContainsKey(member.Id))
-                {
-                    streamersInfo.Add(memberId, new StreamerInfo());
-                }
-                var info = streamersInfo[memberId];
-                info.EndPhrase = p;
-                streamersInfo[memberId] = info;
-                await ctx.Channel.SendTempMessageAsync($"Успешно установлена фраза для окончания стрима: \"{p}\" у пользователя {ctx.Member.Mention}");
+                case StreamerInfoType.StartPhrase:
+                    {
+                        actionType = "фраза для начала стрима";
+                        info.StartPhrase = content;
+                        break;
+                    }
+                case StreamerInfoType.ImageUrl:
+                    {
+                        actionType = "картинка для стрима";
+                        info.ImageUrl = content;
+                        break;
+                    }
+                case StreamerInfoType.EndPhrase:
+                    {
+                        actionType = "фраза для окончания стрима";
+                        info.EndPhrase = content;
+                        break;
+                    }
+            }
+            streamersInfo[memberId] = info;
+            await SaveAsync();
+
+            await ctx.Channel.SendTempMessageAsync($"Успешно установлена {actionType}: \"{content}\" у пользователя {ctx.Member.Mention}");
+
+        }
+        /// <summary>
+        /// returns result of operation
+        /// </summary>
+        /// <param name="content"></param>
+        /// <param name="infoType"></param>
+        /// <returns></returns>
+        public async Task<string> SetDefaultStreamerInfo(string content, StreamerInfoType infoType)
+        {
+            string actionType = string.Empty;
+            switch (infoType)
+            {
+                case StreamerInfoType.StartPhrase:
+                    {
+                        actionType = "фраза для начала стрима";
+                        defaultStartPhrase = content;
+                        break;
+                    }
+                case StreamerInfoType.ImageUrl:
+                    {
+                        actionType = "картинка для стрима";
+                        defaultImageUrl = content;
+                        break;
+                    }
+                case StreamerInfoType.EndPhrase:
+                    {
+                        actionType = "фраза для окончания стрима";
+                        defaultImageUrl = content;
+                        break;
+                    }
             }
             await SaveAsync();
+            return $"Стандартная {actionType} успешно установлена";
         }
         #endregion
 
@@ -139,6 +163,7 @@ namespace LOSCKeeper.Notifications
         {
             StreamNotifierJson json = new StreamNotifierJson();
             json.DefaultStartPhrase = defaultStartPhrase;
+            json.DefaultImageUrl = defaultImageUrl;
             json.DefaultEndPhrase = defaultEndPhrase;
             json.StreamerRoleId = streamerRoleId;
             json.StreamersInfo = streamersInfo;
@@ -170,19 +195,19 @@ namespace LOSCKeeper.Notifications
         #region InnerStructs
         public struct StreamerInfo
         {
+            public string ImageUrl { get; set; }
             public string StartPhrase { get; set; }
             public string EndPhrase { get; set; }
         }
         struct StreamNotifierJson
         {
             public string DefaultStartPhrase { get; set; }
+            public string DefaultImageUrl { get; set; }
             public string DefaultEndPhrase { get; set; }
             public ulong StreamerRoleId { get; set; }
             public Dictionary<ulong, StreamerInfo> StreamersInfo { get; set; }
             
         }
         #endregion
-
     }
-
 }

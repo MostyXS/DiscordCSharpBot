@@ -1,12 +1,12 @@
 ﻿using DSharpPlus;
 using DSharpPlus.Entities;
-using LOSCKeeper.Handlers.Dialogue.Steps;
+using LSSKeeper.Handlers.Dialogue.Steps;
 using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace LOSCKeeper.Handlers.Dialogue
+namespace LSSKeeper.Handlers.Dialogue
 {
     class DialogueHandler
     {

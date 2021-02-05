@@ -2,13 +2,13 @@
 using DSharpPlus.CommandsNext;
 using DSharpPlus.Interactivity;
 using DSharpPlus.Interactivity.Extensions;
-using LOSCKeeper.Commands;
-using LOSCKeeper.Notifications;
+using LSSKeeper.Commands;
+using LSSKeeper.Notifications;
 using System;
 
 using System.Threading.Tasks;
 
-namespace LOSCKeeper.Main
+namespace LSSKeeper.Main
 {
     public class Core
     {
@@ -18,9 +18,6 @@ namespace LOSCKeeper.Main
         public ConfigManager ConfigManager { get; private set; } = new ConfigManager();
 
         public GuildEvents GuildEvents { get; private set; }
-        public RoleGranter RoleGranter { get; private set; }
-        public StreamNotifier StreamNotifier { get; private set; }
-
 
         public static Core Instance { get; private set; }
 
@@ -32,7 +29,7 @@ namespace LOSCKeeper.Main
             Client = new DiscordClient(await ConfigManager.GetBotConfigAsync());
             await ConfigManager.CreateAsync(Client);
 
-            await SubscribeToeventHandlers();
+            await SubscribeToEventHandlers();
 
             Client.UseInteractivity(new InteractivityConfiguration
             {
@@ -46,16 +43,18 @@ namespace LOSCKeeper.Main
             await Task.Delay(-1);
         }
 
-        private async Task SubscribeToeventHandlers()
+        private async Task SubscribeToEventHandlers()
         {
             var defaultGuild = await ConfigManager.GetDefaultGuild(Client);
 
-            RoleGranter = new RoleGranter(Client, defaultGuild);
-            await RoleGranter.TryInitializeAsync();
+            var rg = new RoleGranter(Client, defaultGuild);
+            await rg.TryInitializeAsync();
+            RoleGranterCommands.RG = rg;
 
             var streamNotifyChannel = ConfigManager.GetNotifyChannel(NotifyChannelType.Stream);
-            StreamNotifier = new StreamNotifier(Client, defaultGuild, streamNotifyChannel);
-            await StreamNotifier.TryInitializeAsync();
+            var sn = new StreamNotifier(Client, defaultGuild, streamNotifyChannel);
+            await sn.TryInitializeAsync();
+            StreamNotifierCommands.SN = sn;
 
             var auditChannel = ConfigManager.GetNotifyChannel(NotifyChannelType.Audit);
             GuildEvents = new GuildEvents(auditChannel, defaultGuild);
@@ -67,6 +66,7 @@ namespace LOSCKeeper.Main
             Commands.RegisterCommands<GuildEventsCommands>();
             Commands.RegisterCommands<RoleGranterCommands>();
             Commands.RegisterCommands<StreamNotifierCommands>();
+            Commands.RegisterCommands<CommonCommands>();
         }
     }
 

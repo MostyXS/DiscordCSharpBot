@@ -1,11 +1,11 @@
 ﻿using DSharpPlus;
 using DSharpPlus.CommandsNext;
 using DSharpPlus.CommandsNext.Attributes;
-using LOSCKeeper.Main;
+using LSSKeeper.Main;
 using System;
 using System.Threading.Tasks;
 
-namespace LOSCKeeper.Commands
+namespace LSSKeeper.Commands
 {
     class GuildEventsCommands : BaseCommandModule
     {

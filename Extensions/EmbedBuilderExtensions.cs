@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace LOSCKeeper.Extensions
+namespace LSSKeeper.Extensions
 {
     public static class EmbedBuilderExtensions
     {

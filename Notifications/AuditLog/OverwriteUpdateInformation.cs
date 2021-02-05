@@ -1,13 +1,13 @@
 ﻿using DSharpPlus;
 using DSharpPlus.Entities;
-using LOSCKeeper.Extensions;
+using LSSKeeper.Extensions;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace LOSCKeeper
+namespace LSSKeeper
 {
     public class OverwriteUpdateInformation
     {

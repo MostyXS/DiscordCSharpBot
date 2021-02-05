@@ -2,16 +2,16 @@
 using DSharpPlus.CommandsNext.Attributes;
 using DSharpPlus.Entities;
 using DSharpPlus.Interactivity.Extensions;
-using LOSCKeeper.Attributes;
-using LOSCKeeper.Handlers.Dialogue;
-using LOSCKeeper.Handlers.Dialogue.Steps;
+using LSSKeeper.Attributes;
+using LSSKeeper.Handlers.Dialogue;
+using LSSKeeper.Handlers.Dialogue.Steps;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace LOSCKeeper.Commands
+namespace LSSKeeper.Commands
 {
     public class FunCommands : BaseCommandModule
     {

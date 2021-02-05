@@ -6,7 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace LOSCKeeper.Extensions
+namespace LSSKeeper.Extensions
 {
     public static class ToStringExtensions
     {

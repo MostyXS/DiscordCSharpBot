@@ -4245,11 +4245,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\Mosty\\Desktop\\Compact Desktop\\Projects\\LOSCKeeper\\LOSCKeeper.csproj",
-      "projectName": "LOSCKeeper",
-      "projectPath": "C:\\Users\\Mosty\\Desktop\\Compact Desktop\\Projects\\LOSCKeeper\\LOSCKeeper.csproj",
+      "projectUniqueName": "C:\\Users\\Mosty\\Desktop\\Compact Desktop\\Projects\\LSSKeeper\\LSSKeeper.csproj",
+      "projectName": "LSSKeeper",
+      "projectPath": "C:\\Users\\Mosty\\Desktop\\Compact Desktop\\Projects\\LSSKeeper\\LSSKeeper.csproj",
       "packagesPath": "C:\\Users\\Mosty\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\Mosty\\Desktop\\Compact Desktop\\Projects\\LOSCKeeper\\obj\\",
+      "outputPath": "C:\\Users\\Mosty\\Desktop\\Compact Desktop\\Projects\\LSSKeeper\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
         "C:\\Users\\Mosty\\AppData\\Roaming\\NuGet\\NuGet.Config",

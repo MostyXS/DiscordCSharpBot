@@ -7,7 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace LOSCKeeper.Extensions
+namespace LSSKeeper.Extensions
 {
     public static class FlexibilityExtensions
     {
@@ -30,6 +30,17 @@ namespace LOSCKeeper.Extensions
             var msg = await c.SendMessageAsync(content);
             await Task.Delay(TimeSpan.FromSeconds(5));
             await msg.DeleteAsync();
+        }
+        public static DiscordEmoji ToEmoji(this string s, BaseDiscordClient c)
+        {
+            try
+            {
+                return DiscordEmoji.FromName(c, s);
+            }
+            catch
+            {
+                return DiscordEmoji.FromUnicode(c, s);
+            }
         }
     }
 }

@@ -31,8 +31,9 @@ namespace LSSKeeper.Main
         public async Task SetNotifyChannel(NotifyChannelType type, DiscordChannel channel)
         {
             string fileName = ConfigNames.DEFAULT;
+            
             string file = await File.ReadAllTextAsync(fileName);
-            JObject json = new JObject();
+            JObject json = null;
             try
             {
                 json = JObject.Parse(file);
@@ -40,7 +41,8 @@ namespace LSSKeeper.Main
             }
             catch
             {
-
+                if (json == null)
+                    json = new JObject();
                 json.Add(type.ToString(), channel.Id);
             }
             notifyChannels[type] = channel;
@@ -105,25 +107,31 @@ namespace LSSKeeper.Main
         }
         private async Task AssignKnownChannelsAsync(DiscordGuild guild)
         {
+            if (!File.Exists(ConfigNames.DEFAULT))
+                File.Create(ConfigNames.DEFAULT);
+
             foreach (var cType in (NotifyChannelType[])Enum.GetValues(typeof(NotifyChannelType)))
             {
                 DiscordChannel channel;
                 notifyChannels.TryGetValue(cType, out channel);
 
-
+                
+                
                 string file = await File.ReadAllTextAsync(ConfigNames.DEFAULT);
                 JObject json = null;
                 try
                 {
                     json = JObject.Parse(file);
+                    if (json == null) return;
                 }
                 catch
                 {
-                    Console.WriteLine("Неверное форматирование json Config'а, попробуйте почистить файл или обратиться к автору бота");
+                    Console.WriteLine("Json Config пуст или неверно форматирован");
+                    return;
                 }
 
                 var cId = json[cType.ToString()]?.ToString();
-                if (cId == null || cId == "")
+                if (string.IsNullOrEmpty(cId))
                 {
                     Console.WriteLine($"Стандартный канал типа {cType} не задан, используйте команду !set{cType}");
                     return;

@@ -2,40 +2,47 @@
 using DSharpPlus;
 using DSharpPlus.Entities;
 using DSharpPlus.EventArgs;
-using Emzi0767.Utilities;
 using LSSKeeper.Extensions;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace LSSKeeper
 {
 
-
+    [JsonObject(MemberSerialization.OptIn)]
     public class GuildEvents
     {
-        public DiscordChannel AuditChannel { private get; set; }
-        DiscordGuild defaultGuild;
-
-        DiscordAuditLogEntry newEntry;//Any entry
-        DiscordAuditLogEntry lastHandledEntry; //new entry that comes to messageSending
+        DiscordChannel auditChannel;
+        DiscordAuditLogEntry newEntry;
+        DiscordAuditLogEntry lastHandledEntry;
 
         DiscordEmbedBuilder entryBuilder = new DiscordEmbedBuilder();
+        DiscordGuild defaultGuild;
+        #region Config Params
+        [JsonProperty]
+        ulong? channelId;
+        
+        #endregion
 
-        public GuildEvents( DiscordChannel auditChannel, DiscordGuild defaultGuild)
+        public void TryInitializeAsync(DiscordClient c, DiscordGuild defaultGuild) //Subscribe event methods to current guild methods //Need to modify ref
         {
-            this.AuditChannel = auditChannel;
             this.defaultGuild = defaultGuild;
-        }
-        public void SubscribeToGuildEvents(DiscordClient c) //Subscribe event methods to current guild methods //Need to modify ref
-        {
+            try
+            {
+                var jsonString = File.ReadAllText(ConfigNames.GUILDEVENTS);
+                var json = JsonConvert.DeserializeObject<GuildEvents>(jsonString);
+                channelId = json.channelId;
+                if (channelId != null)
+                    auditChannel = defaultGuild.GetChannel((ulong)channelId);
+            }
+            catch (Exception e)
+            {
+                Console.Error.WriteLine("Не удалось инициализировать конфиг аудит лога " + e.Message);
 
+            }
             c.GuildMemberAdded += GuildMemberAdded; //Done 100% //Not with audit log
             c.GuildMemberUpdated += GuildMemberUpdated; //Done 100%
             c.GuildMemberRemoved += GuildMemberRemoved; //Done 100%
@@ -64,7 +71,30 @@ namespace LSSKeeper
             c.InviteDeleted += InviteDeleted; //Done 100%
 
         }
+        #region Commands
+        public async Task SetChannelAsync(DiscordChannel channel)
+        {
+            auditChannel = channel;
+            channelId = channel.Id;
+            await SaveAsync();
+        }
 
+        private async Task SaveAsync()
+        {
+            try
+            {
+                var jsonString = JsonConvert.SerializeObject(this);
+                await File.WriteAllTextAsync(ConfigNames.GUILDEVENTS, jsonString);
+            }
+            catch(Exception e)
+            {
+                Console.Error.WriteLine("Не удалось сохранить конфиг аудит лога " + e.Message);
+            }
+        }
+        #endregion
+        #region Config Management
+
+        #endregion
         #region Guild Actions
         private async Task IntegrationsUpdated(DiscordClient sender, GuildIntegrationsUpdateEventArgs e)
         {
@@ -330,19 +360,19 @@ namespace LSSKeeper
             bool isSelfDelete = mdEntry == null;
             if (msg?.Author == null) //Происходит при перезапуске бота или если сообщение устарело //msg !=null is not working properly
             {
-                
                 string user = isSelfDelete ? "" : ", Удаливший: " + mdEntry.UserResponsible.Mention;
                 await SendMessageToAuditAsync(content: $"Некэшированое сообщение удалено в канале " + e.Channel.Name + user);
                 return;
             }
-            if (msg.Author.IsBot) return;
             DiscordEmbedBuilder entryBuilder = new DiscordEmbedBuilder();
             if (isSelfDelete)
             {
+                if (msg.Author.IsBot) return;
                 entryBuilder.SetAuthor(msg.Author);
             }
             else
             {
+                if (mdEntry.UserResponsible.IsBot) return;
                 entryBuilder = EmbedBuilderExtensions.CreateForAudit(mdEntry);
             }
             entryBuilder.SetTitle("Удаление сообщения");
@@ -392,12 +422,11 @@ namespace LSSKeeper
 
         private async Task GuildMemberUpdated(DiscordClient sender, GuildMemberUpdateEventArgs e)
         {
-            Console.WriteLine("Member");
             var muEntry = await GetNewEntryAsync() as DiscordAuditLogMemberUpdateEntry;
             if (muEntry == null) return;
 
             entryBuilder = EmbedBuilderExtensions.CreateForAudit(muEntry, $"Изменение члена гильдии {muEntry.Target.Username}");
-
+            if (muEntry.UserResponsible.IsBot) return;
             entryBuilder.AddNamePropertyChange(muEntry.NicknameChange);
 
             entryBuilder.AddRoles("Добавленные", muEntry.AddedRoles);
@@ -440,9 +469,9 @@ namespace LSSKeeper
 
         private async Task SendMessageToAuditAsync(bool checkForSameEntry = false, string content = null, DiscordEmbedBuilder embed = null)
         {
-            if (AuditChannel == null || (checkForSameEntry && newEntry.Id == lastHandledEntry?.Id)) return;
+            if (auditChannel == null || (checkForSameEntry && newEntry.Id == lastHandledEntry?.Id)) return;
             lastHandledEntry = newEntry;
-            await AuditChannel.SendMessageAsync(embed: embed, content: content);
+            await auditChannel.SendMessageAsync(embed: embed, content: content);
         }
 
         #endregion

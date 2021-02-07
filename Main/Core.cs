@@ -1,64 +1,55 @@
 ﻿using DSharpPlus;
 using DSharpPlus.CommandsNext;
+using DSharpPlus.Entities;
 using DSharpPlus.Interactivity;
 using DSharpPlus.Interactivity.Extensions;
 using LSSKeeper.Commands;
 using LSSKeeper.Notifications;
+using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
 using System;
-
+using System.IO;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace LSSKeeper.Main
 {
     public class Core
     {
-        DiscordClient Client;
-        public InteractivityExtension Interactivity { get; private set; }
-        public CommandsNextExtension Commands { get; private set; }
-        public ConfigManager ConfigManager { get; private set; } = new ConfigManager();
+        DiscordClient client;
+        public static CommandsNextExtension Commands { get; private set; }
 
-        public GuildEvents GuildEvents { get; private set; }
+        static DiscordGuild defaultGuild;
 
-        public static Core Instance { get; private set; }
 
        
         public async Task MainAsync()
         {
-            Instance = this;
 
-            Client = new DiscordClient(await ConfigManager.GetBotConfigAsync());
-            await ConfigManager.CreateAsync(Client);
+            await AssignDefaultConfigurationsAsync();
 
             await SubscribeToEventHandlers();
 
-            Client.UseInteractivity(new InteractivityConfiguration
-            {
-                Timeout = TimeSpan.FromMinutes(1)
-            });
-            Commands = Client.UseCommandsNext(ConfigManager.GetCommandsConfig());
-
             RegisterAllCommands();
 
-            await Client.ConnectAsync();
+            await client.ConnectAsync();
             await Task.Delay(-1);
         }
 
         private async Task SubscribeToEventHandlers()
         {
-            var defaultGuild = await ConfigManager.GetDefaultGuild(Client);
 
-            var rg = new RoleGranter(Client, defaultGuild);
-            await rg.TryInitializeAsync();
+            var rg = new RoleGranter();
+            await rg.TryInitializeAsync(client, defaultGuild);
             RoleGranterCommands.RG = rg;
 
-            var streamNotifyChannel = ConfigManager.GetNotifyChannel(NotifyChannelType.Stream);
-            var sn = new StreamNotifier(Client, defaultGuild, streamNotifyChannel);
-            await sn.TryInitializeAsync();
+            var sn = new StreamNotifier();
+            await sn.TryInitializeAsync(client, defaultGuild);
             StreamNotifierCommands.SN = sn;
 
-            var auditChannel = ConfigManager.GetNotifyChannel(NotifyChannelType.Audit);
-            GuildEvents = new GuildEvents(auditChannel, defaultGuild);
-            GuildEvents.SubscribeToGuildEvents(Client);
+            var ge  = new GuildEvents();
+            ge.TryInitializeAsync(client, defaultGuild);
+            GuildEventsCommands.GE = ge;
         }
 
         private void RegisterAllCommands()
@@ -67,6 +58,34 @@ namespace LSSKeeper.Main
             Commands.RegisterCommands<RoleGranterCommands>();
             Commands.RegisterCommands<StreamNotifierCommands>();
             Commands.RegisterCommands<CommonCommands>();
+        }
+        private async Task AssignDefaultConfigurationsAsync()
+        {
+            var jsonString = string.Empty;
+
+            using (var fs = File.OpenRead("config.json"))
+            using (var sr = new StreamReader(fs, new UTF8Encoding(false)))
+                jsonString = await sr.ReadToEndAsync().ConfigureAwait(false);
+            var defaultConfig = JsonConvert.DeserializeObject<DefaultJson>(jsonString);
+
+            client = new DiscordClient(new DiscordConfiguration()
+            {
+                Token = defaultConfig.Token,
+                TokenType = TokenType.Bot,
+                AutoReconnect = true,
+                MinimumLogLevel = LogLevel.Debug,
+                MessageCacheSize = 131072
+                
+            });
+            Commands = client.UseCommandsNext(new CommandsNextConfiguration()
+            {
+                StringPrefixes = new string[] { defaultConfig.Prefix },
+                EnableDms = false,
+                EnableMentionPrefix = true,
+                DmHelp = true
+            });
+            defaultGuild = await client.GetGuildAsync(defaultConfig.GuildId);
+            
         }
     }
 

@@ -4,9 +4,6 @@ using DSharpPlus.Entities;
 using LSSKeeper.Extensions;
 using LSSKeeper.Main;
 using LSSKeeper.Notifications;
-using System;
-using System.Collections.Generic;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace LSSKeeper.Commands
@@ -16,13 +13,12 @@ namespace LSSKeeper.Commands
         public static StreamNotifier SN { private get; set; }
 
         #region Main Commands 
-        [Command("setStream")]
+        [Command("SNsetChannel")]
         [Description("Выставляет текущий канал в качестве канала оповещений о стриме")]
         public async Task SetDefaultStreamChannel(CommandContext ctx)
         {
-            
-            SN.NotifyChannel = ctx.Channel;
-            await Core.Instance.ConfigManager.SetNotifyChannel(NotifyChannelType.Stream, ctx.Channel);
+            await SN.SetChannelAsync(ctx.Channel);
+            await ctx.Channel.SendTempMessageAsync("Успешно установлен как канал для оповещений о стриме");
         }
         [Command("SNsetRole")]
         [RequirePermissions(DSharpPlus.Permissions.ManageRoles)]
@@ -50,7 +46,7 @@ namespace LSSKeeper.Commands
             {
                 await ctx.Channel.SendMessageAsync("Неверное форматирование !SNsetEnd \"фраза\"");
             }
-            await SN.SetStreamerInfo(phrase, Notifications.StreamerInfoType.StartPhrase, ctx);
+            await SN.SetStreamerInfo(ctx, phrase, Notifications.StreamerInfoType.StartPhrase);
 
         }
 
@@ -62,7 +58,7 @@ namespace LSSKeeper.Commands
             {
                 await ctx.Channel.SendMessageAsync("Неверное форматирование !SNsetImage {ссылка на картинку}(без фигурных скобок)");
             }
-            await SN.SetStreamerInfo(phrase, Notifications.StreamerInfoType.ImageUrl, ctx);
+            await SN.SetStreamerInfo(ctx, phrase, Notifications.StreamerInfoType.ImageUrl);
         }
 
         [Command("SNsetEnd")]
@@ -74,7 +70,7 @@ namespace LSSKeeper.Commands
             {
                 await ctx.Channel.SendMessageAsync("Неверное форматирование !SNsetEnd \"фраза\"");
             }
-            await SN.SetStreamerInfo(phrase, Notifications.StreamerInfoType.EndPhrase, ctx);
+            await SN.SetStreamerInfo(ctx, phrase, Notifications.StreamerInfoType.EndPhrase);
         }
         #endregion
 

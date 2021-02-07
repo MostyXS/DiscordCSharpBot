@@ -4,6 +4,7 @@ using DSharpPlus.Entities;
 using DSharpPlus.EventArgs;
 using LSSKeeper.Extensions;
 using Newtonsoft.Json;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -12,19 +13,20 @@ using System.Threading.Tasks;
 
 namespace LSSKeeper.Commands
 {
+    [JsonObject(MemberSerialization = MemberSerialization.Fields)]
     public class RoleGranter
     {
+        [JsonIgnore]
         DiscordGuild defaultGuild;
-
+        [JsonIgnore]
         DiscordMessage rolesMessage;
-        List<RoleInfo> rolesInfo = new List<RoleInfo>();
 
-        public RoleGranter(DiscordClient c, DiscordGuild defaultGuild)
-        {
-            this.defaultGuild = defaultGuild;
-            c.MessageReactionAdded += TryGrantRoleAsync;
-            c.MessageReactionRemoved += TryRevokeRoleAsync;
-        }
+        #region Config Params
+        List<RoleInfo> rolesInfo = new List<RoleInfo>();
+        ulong? channelId;
+        ulong? rolesMessageId;
+        #endregion
+
         private string GetRolesString(DiscordClient c)
         {
             if (rolesInfo.Count == 0) return "Empty";
@@ -42,7 +44,7 @@ namespace LSSKeeper.Commands
         #region Commands
         public async Task CreateRoleMessageAsync(CommandContext ctx, string title, string description, string rolesFieldName, string footer)
         {
-            
+
             DiscordEmbedBuilder embedBuilder = new DiscordEmbedBuilder()
             {
                 Title = title,
@@ -56,13 +58,15 @@ namespace LSSKeeper.Commands
             {
                 await msg.CreateReactionAsync(r.emojiName.ToEmoji(ctx.Client));
             }
+            channelId = msg.ChannelId;
+            rolesMessageId = msg.Id;
             rolesMessage = msg;
             await SaveAsync();
         }
 
         public async Task<RoleAddResult> TryAddRoleAsync(DiscordClient c, DiscordRole role, DiscordEmoji emoji, string desc)
         {
-            
+
             if (rolesInfo.Any((x) => x.roleId == role.Id)) return RoleAddResult.AlreadyHasRole;
             else if (rolesInfo.Any((x) => x.emojiName == emoji.Name)) return RoleAddResult.AlreadyHasEmoji;
 
@@ -101,7 +105,7 @@ namespace LSSKeeper.Commands
             return true;
 
         }
-        
+
         public async Task ChangeEmbedAsync(string title = null, string description = null, string rfName = null, string footer = null)
         {
             if (rolesMessage == null) return;
@@ -111,7 +115,8 @@ namespace LSSKeeper.Commands
             embedBuilder.Description = description != null ? description : embedBuilder.Description;
             embedBuilder.Fields[0].Name = rfName != null ? rfName : embedBuilder.Fields[0].Name;
             embedBuilder.Fields[1].Name = footer != null ? footer : embedBuilder.Fields[1].Name;
-            await rolesMessage.ModifyAsync(embed: embedBuilder.Build());
+            rolesMessage = await rolesMessage.ModifyAsync(embed: embedBuilder.Build());
+
         }
 
         public async Task Reset()
@@ -125,7 +130,6 @@ namespace LSSKeeper.Commands
                 }
                 catch
                 {
-
                 }
                 rolesMessage = null;
             }
@@ -136,7 +140,7 @@ namespace LSSKeeper.Commands
         #endregion
 
         #region Events
-        
+
 
         private async Task TryGrantRoleAsync(DiscordClient sender, MessageReactionAddEventArgs e)
         {
@@ -167,53 +171,51 @@ namespace LSSKeeper.Commands
         #endregion
 
         #region ConfigManagement
-        public async Task TryInitializeAsync()
+        public async Task TryInitializeAsync(DiscordClient c, DiscordGuild defaultGuild)
         {
             try
             {
                 var json = await File.ReadAllTextAsync(ConfigNames.ROLEGRANTER);
 
-                var rgj = JsonConvert.DeserializeObject<RGJson>(json);
-
-                if (rgj.channelId != null && rgj.messageId != null)
+                var rgj = JsonConvert.DeserializeObject<RoleGranter>(json);
+                channelId = rgj.channelId;
+                rolesMessageId = rgj.rolesMessageId;
+                if (channelId != null && rolesMessageId != null)
                 {
-                    rolesMessage = await defaultGuild.GetChannel((ulong)rgj.channelId).GetMessageAsync((ulong)rgj.messageId);
+                    rolesMessage = await defaultGuild.GetChannel((ulong)rgj.channelId).GetMessageAsync((ulong)rgj.rolesMessageId);
                 }
                 if (rgj.rolesInfo != null)
                     rolesInfo = rgj.rolesInfo;
             }
-            catch
+            catch(Exception e)
             {
+                Console.Error.WriteLine("Не удалось инициализировать конфиг выдачи ролей " + e.Message);
             }
+            this.defaultGuild = defaultGuild;
+            c.MessageReactionAdded += TryGrantRoleAsync;
+            c.MessageReactionRemoved += TryRevokeRoleAsync;
         }
         private async Task SaveAsync()
         {
-            RGJson rgj = new RGJson();
-            rgj.rolesInfo = rolesInfo;
-            rgj.messageId = rolesMessage?.Id;
-            rgj.channelId = rolesMessage?.ChannelId;
-            string json = JsonConvert.SerializeObject(rgj);
-            await File.WriteAllTextAsync(ConfigNames.ROLEGRANTER, json);
+            try
+            {
+                string json = JsonConvert.SerializeObject(this);
+                await File.WriteAllTextAsync(ConfigNames.ROLEGRANTER, json);
+            }
+            catch(Exception e)
+            {
+                Console.Error.WriteLine("Не удалось сохранить конфиг выдачи ролей " + e.Message);
+            }
 
         }
         #endregion
         #region Inner Structs
-
         struct RoleInfo
         {
             public ulong roleId;
             public string emojiName;
             public string desc;
         }
-
-        struct RGJson
-        {
-            public ulong? channelId;
-            public ulong? messageId;
-            public List<RoleInfo> rolesInfo;
-
-        }
-
         #endregion
     }
 }

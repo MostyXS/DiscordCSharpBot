@@ -3,6 +3,7 @@ using DSharpPlus.CommandsNext;
 using DSharpPlus.Entities;
 using DSharpPlus.EventArgs;
 using LSSKeeper.Extensions;
+using LSSKeeper.Main;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -12,30 +13,29 @@ using System.Threading.Tasks;
 
 namespace LSSKeeper.Notifications
 {
+    [JsonObject(MemberSerialization = MemberSerialization.Fields)]
     public class StreamNotifier
     {
-        DiscordGuild defaultGuild;
-        public DiscordChannel NotifyChannel { private get; set; }
+        [JsonIgnore]
         List<ulong> currentlyStreaming = new List<ulong>();
+        [JsonIgnore]
+        DiscordChannel notifyChannel;
+        [JsonIgnore]
+        DiscordGuild defaultGuild;
 
         #region ConfigParams
-        string defaultStartPhrase = string.Empty;
-        string defaultImageUrl = string.Empty;
-        string defaultEndPhrase = string.Empty;
-        public ulong streamerRoleId;
+        
+        string defaultStartPhrase = "Empty";
+        string defaultImageUrl = "Empty";
+        string defaultEndPhrase = "Empty";
+        ulong? notifyChannelId;
+        ulong streamerRoleId;
         Dictionary<ulong, StreamerInfo> streamersInfo = new Dictionary<ulong, StreamerInfo>();
         #endregion
 
-        public StreamNotifier(DiscordClient c, DiscordGuild defaultGuild, DiscordChannel streamNotificationChannel)
-        {
-            NotifyChannel = streamNotificationChannel;
-            this.defaultGuild = defaultGuild;
-            c.PresenceUpdated += Notify;
-        }
-
         private async Task Notify(DiscordClient sender, PresenceUpdateEventArgs e)
         {
-            if (NotifyChannel == null) return;
+            if (notifyChannel == null) return;
             var member = await defaultGuild.GetMemberAsync(e.User.Id);
             if (member == null || !member.Roles.Any((x) => x.Id == streamerRoleId)) return;
 
@@ -45,7 +45,6 @@ namespace LSSKeeper.Notifications
 
             StreamerInfo info;
             bool isInList = streamersInfo.TryGetValue(member.Id, out info);
-
             if (actTypeAfter == ActivityType.Streaming && !currentlyStreaming.Contains(member.Id)) //If start streaming
             {
                 currentlyStreaming.Add(member.Id);
@@ -61,9 +60,18 @@ namespace LSSKeeper.Notifications
                 embedBuilder.SetTitle(actInfo.Details);
                 embedBuilder.AddField("Игра", actInfo.State);
                 embedBuilder.AddField("Ссылка", pres.Activity.StreamUrl);
-                embedBuilder.WithImageUrl(imageUrl);
 
-                await NotifyChannel.SendMessageAsync(content, embed: embedBuilder.Build());
+                try
+                {
+                    embedBuilder.WithImageUrl(imageUrl);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine("Не удалось установить картинку для пользователя " + member.Username + " Причина: " + ex.Message);
+                }
+                
+                
+                await notifyChannel.SendMessageAsync(content, embed: embedBuilder.Build());
 
             }
             else if (actTypeAfter != ActivityType.Streaming && currentlyStreaming.Contains(member.Id)) // If end streaming
@@ -72,18 +80,25 @@ namespace LSSKeeper.Notifications
                 content = isInList && !string.IsNullOrEmpty(info.EndPhrase) ? info.EndPhrase : defaultEndPhrase;
 
                 content = content.Replace("name", $"**{member.Username}**");
-                await NotifyChannel.SendMessageAsync(content);
+                await notifyChannel.SendMessageAsync(content);
             }
         }
 
         #region Commands
         public async Task SetStreamerRole(DiscordRole role)
         {
+            
             streamerRoleId = role.Id;
             await SaveAsync();
         }
 
-        public async Task SetStreamerInfo(string content, StreamerInfoType infoType, CommandContext ctx)
+        public async Task SetChannelAsync(DiscordChannel channel)
+        {
+            notifyChannel = channel;
+            notifyChannelId = channel.Id;
+            await SaveAsync();
+        }
+        public async Task SetStreamerInfo(CommandContext ctx, string content, StreamerInfoType infoType)
         {
 
             var member = ctx.Member;
@@ -161,52 +176,50 @@ namespace LSSKeeper.Notifications
         #region Config Management
         private async Task SaveAsync()
         {
-            StreamNotifierJson json = new StreamNotifierJson();
-            json.DefaultStartPhrase = defaultStartPhrase;
-            json.DefaultImageUrl = defaultImageUrl;
-            json.DefaultEndPhrase = defaultEndPhrase;
-            json.StreamerRoleId = streamerRoleId;
-            json.StreamersInfo = streamersInfo;
-            var jsonString = JsonConvert.SerializeObject(json);
-            await File.WriteAllTextAsync(ConfigNames.STREAMNOTY, jsonString);
+            try
+            {
+                var jsonString = JsonConvert.SerializeObject(this);
+                await File.WriteAllTextAsync(ConfigNames.STREAMNOTY, jsonString);
+            }
+            catch(Exception e)
+            {
+                Console.Error.WriteLine("Не удалось сохранить конфиг оповещений о стриме " + e.Message);
+            }
         }
 
-        public async Task TryInitializeAsync()
+        public async Task TryInitializeAsync(DiscordClient c, DiscordGuild defaultGuild)
         {
+            this.defaultGuild = defaultGuild;
             try
             {
                 var jsonString = await File.ReadAllTextAsync(ConfigNames.STREAMNOTY);
-                var json = JsonConvert.DeserializeObject<StreamNotifierJson>(jsonString);
-
-                streamerRoleId = json.StreamerRoleId;
-                streamersInfo = json.StreamersInfo;
-                if (json.DefaultStartPhrase != null)
-                    defaultStartPhrase = json.DefaultStartPhrase;
-                if (json.DefaultEndPhrase != null)
-                    defaultEndPhrase = json.DefaultEndPhrase;
+                var json = JsonConvert.DeserializeObject<StreamNotifier>(jsonString);
+                defaultStartPhrase = json.defaultStartPhrase;
+                defaultImageUrl = json.defaultImageUrl;
+                defaultEndPhrase = json.defaultEndPhrase;
+                if (json.notifyChannelId != null)
+                {
+                    notifyChannelId = json.notifyChannelId;
+                    notifyChannel = defaultGuild.GetChannel((ulong)notifyChannelId);
+                }
+                streamerRoleId = json.streamerRoleId;
+                streamersInfo = json.streamersInfo;
             }
-            catch
+            catch (Exception e)
             {
+                Console.Error.WriteLine("Не удалось инициализировать конфиг оповещений о стриме " + e.Message);
 
             }
+            c.PresenceUpdated += Notify;
         }
         #endregion
 
         #region InnerStructs
-        public struct StreamerInfo
+        struct StreamerInfo
         {
-            public string ImageUrl { get; set; }
-            public string StartPhrase { get; set; }
-            public string EndPhrase { get; set; }
-        }
-        struct StreamNotifierJson
-        {
-            public string DefaultStartPhrase { get; set; }
-            public string DefaultImageUrl { get; set; }
-            public string DefaultEndPhrase { get; set; }
-            public ulong StreamerRoleId { get; set; }
-            public Dictionary<ulong, StreamerInfo> StreamersInfo { get; set; }
-            
+            public string ImageUrl;
+            public string StartPhrase;
+            public string EndPhrase;
         }
         #endregion
     }

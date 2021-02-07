@@ -1,6 +1,7 @@
 ﻿using DSharpPlus;
 using DSharpPlus.CommandsNext;
 using DSharpPlus.CommandsNext.Attributes;
+using LSSKeeper.Extensions;
 using LSSKeeper.Main;
 using System;
 using System.Threading.Tasks;
@@ -9,13 +10,13 @@ namespace LSSKeeper.Commands
 {
     class GuildEventsCommands : BaseCommandModule
     {
+        public static GuildEvents GE { private get; set; }
         [Command("setAudit")]
         [Description("Выставляет текущий канал в качестве канала аудита")]
         public async Task SetDefaultAuditLogChannel(CommandContext ctx)
         {
-            var core = Core.Instance;
-            core.GuildEvents.AuditChannel = ctx.Channel;
-            await core.ConfigManager.SetNotifyChannel(NotifyChannelType.Audit, ctx.Channel);
+            await GE.SetChannelAsync(ctx.Channel);
+            await ctx.Channel.SendTempMessageAsync("Успешно установлен как канал аудита");
 
         }
         /*[Command("addResponse")]

@@ -13,6 +13,7 @@ namespace LSSKeeper.Commands
         public static StreamNotifier SN { private get; set; }
 
         #region Main Commands 
+        [RequirePermissions(DSharpPlus.Permissions.ManageRoles)]
         [Command("SNsetChannel")]
         [Description("Выставляет текущий канал в качестве канала оповещений о стриме")]
         public async Task SetDefaultStreamChannel(CommandContext ctx)
@@ -20,6 +21,7 @@ namespace LSSKeeper.Commands
             await SN.SetChannelAsync(ctx.Channel);
             await ctx.Channel.SendTempMessageAsync("Успешно установлен как канал для оповещений о стриме");
         }
+
         [Command("SNsetRole")]
         [RequirePermissions(DSharpPlus.Permissions.ManageRoles)]
         public async Task SetStreamerRole(CommandContext ctx, DiscordRole role = null)
@@ -35,7 +37,7 @@ namespace LSSKeeper.Commands
         #endregion
 
         #region Streamer's Commands
-
+        
         [Command("SNsetStart")]
         [Description("Задаёт УНИКАЛЬНУЮ фразу для начала стрима, работает только для пользователей с ролью транслятора !SNsetRole {Упоминание роли}")]
         public async Task SetStartPhrase(CommandContext ctx, 

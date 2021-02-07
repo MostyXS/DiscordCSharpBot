@@ -30,14 +30,14 @@ namespace LSSKeeper.Commands
             await RG.CreateRoleMessageAsync(ctx, title, description, rolesFieldName, footer);
         }
 
-        [RequireOwner]
+        /*[RequireOwner]
         [Description("Для дебага, только владелец бота")]
         [Command("rgreset")]
         public async Task Reset(CommandContext ctx)
         {
             await RG.Reset();
             await ctx.Channel.SendTempMessageAsync("Done");
-        }
+        }*/
 
 
         [Command("RGaddRole")]
@@ -80,6 +80,7 @@ namespace LSSKeeper.Commands
             }
             await ctx.Channel.SendTempMessageAsync(tempMessageContent);
         }
+        [RequirePermissions(DSharpPlus.Permissions.ManageRoles)]
         [Command("RGremoveRole")]
         public async Task RemoveRoleFromEmoji(CommandContext ctx, DiscordRole role)
         {

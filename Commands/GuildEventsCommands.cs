@@ -11,6 +11,8 @@ namespace LSSKeeper.Commands
     class GuildEventsCommands : BaseCommandModule
     {
         public static GuildEvents GE { private get; set; }
+
+        [RequirePermissions(Permissions.Administrator)]
         [Command("setAudit")]
         [Description("Выставляет текущий канал в качестве канала аудита")]
         public async Task SetDefaultAuditLogChannel(CommandContext ctx)
@@ -25,8 +27,7 @@ namespace LSSKeeper.Commands
 
      
         }*/
-
-        [Command("clear")]
+        /*[Command("clear")]
         [Description("Удаляет канал и создаёт его клон, может быть использована только главой гильдии")]
         public async Task Clear(CommandContext ctx)
         {
@@ -35,6 +36,6 @@ namespace LSSKeeper.Commands
             Console.WriteLine(ctx.Channel.Id);
             Console.Write(c.Id);
             await ctx.Channel.DeleteAsync();
-        }
+        }*/
     }
 }

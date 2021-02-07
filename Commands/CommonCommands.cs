@@ -15,7 +15,7 @@ namespace LSSKeeper.Commands
             DiscordUser[] owners = ctx.Client.CurrentApplication.Owners.ToArray();
             await ctx.Channel.SendMessageAsync(owners[0].Mention);
         }
-        [RequireRoles(RoleCheckMode.All, "Programmer")]
+        [RequireOwner]
         [Command("getGuildId")]
         public async Task GetGuildId(CommandContext ctx)
         {

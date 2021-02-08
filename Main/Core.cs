@@ -80,7 +80,7 @@ namespace LSSKeeper.Main
             Commands = client.UseCommandsNext(new CommandsNextConfiguration()
             {
                 StringPrefixes = new string[] { defaultConfig.Prefix },
-                EnableDms = false,
+                EnableDms = true,
                 EnableMentionPrefix = true,
                 DmHelp = true
             });

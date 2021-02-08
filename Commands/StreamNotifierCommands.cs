@@ -29,6 +29,7 @@ namespace LSSKeeper.Commands
             if(role == null)
             {
                 await ctx.Channel.SendTempMessageAsync("Неверное форматирование !SNsetRole @roleName(упоминание роли)");
+                return;
             }
             await SN.SetStreamerRole(role);
             await ctx.Channel.SendTempMessageAsync($"Роль {role.Mention} успешно установлена как роль транслятора");

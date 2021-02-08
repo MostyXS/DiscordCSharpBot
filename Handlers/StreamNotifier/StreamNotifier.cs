@@ -111,6 +111,7 @@ namespace LSSKeeper.Notifications
             }
             string actionType = string.Empty;
             var info = streamersInfo[memberId];
+
             switch (infoType)
             {
                 case StreamerInfoType.StartPhrase:
@@ -132,11 +133,10 @@ namespace LSSKeeper.Notifications
                         break;
                     }
             }
+
             streamersInfo[memberId] = info;
             await SaveAsync();
-
             await ctx.Channel.SendTempMessageAsync($"Успешно установлена {actionType}: \"{content}\" у пользователя {ctx.Member.Mention}");
-
         }
         /// <summary>
         /// returns result of operation
@@ -164,7 +164,7 @@ namespace LSSKeeper.Notifications
                 case StreamerInfoType.EndPhrase:
                     {
                         actionType = "фраза для окончания стрима";
-                        defaultImageUrl = content;
+                        defaultEndPhrase = content;
                         break;
                     }
             }

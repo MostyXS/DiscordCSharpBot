@@ -276,6 +276,7 @@ namespace LSSKeeper
         private async Task GuildRoleCreated(DiscordClient sender, GuildRoleCreateEventArgs e)
         {
             var rcEntry = await GetNewEntryAsync() as DiscordAuditLogRoleUpdateEntry;
+
             entryBuilder = EmbedBuilderExtensions.CreateForAudit(rcEntry, "Создание роли", $"Создана роль {rcEntry.Target.Name}");
 
             await SendMessageToAuditAsync(embed: entryBuilder);
@@ -284,6 +285,7 @@ namespace LSSKeeper
         {
 
             var roleUpdEntry = await GetNewEntryAsync() as DiscordAuditLogRoleUpdateEntry;
+            if (roleUpdEntry == null) return;
             entryBuilder = EmbedBuilderExtensions.CreateForAudit(roleUpdEntry,
                 "Обновление роли",
                 $"Обновлена роль {roleUpdEntry.Target.Name}");

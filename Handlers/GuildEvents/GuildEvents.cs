@@ -430,7 +430,7 @@ namespace LSSKeeper
 
         private async Task GuildMemberUpdated(DiscordClient sender, GuildMemberUpdateEventArgs e)
         {
-            
+
             var muEntry = await GetNewEntryAsync() as DiscordAuditLogMemberUpdateEntry;
 
             if (muEntry == null) return;
@@ -444,35 +444,40 @@ namespace LSSKeeper
                 await SendMessageToAuditAsync(false, embed: entryBuilder);
             }
             else*/
-            {
-                entryBuilder = EmbedBuilderExtensions.CreateForAudit(muEntry, $"Изменение пользователя {muEntry.Target.Username}");
-                if (muEntry.UserResponsible.IsBot) return;
-                entryBuilder.AddNamePropertyChange(muEntry.NicknameChange);
 
-                entryBuilder.AddRoles("Добавленные", muEntry.AddedRoles);
-                entryBuilder.AddRoles("Удалённые", muEntry.RemovedRoles);
-                await SendMessageToAuditAsync(true, embed: entryBuilder);
-            }
+            entryBuilder = EmbedBuilderExtensions.CreateForAudit(muEntry, $"Изменение пользователя {muEntry.Target.Username}");
+            if (muEntry.UserResponsible.IsBot) return;
+            entryBuilder.AddNamePropertyChange(muEntry.NicknameChange);
+
+            entryBuilder.AddRoles("Добавленные", muEntry.AddedRoles);
+            entryBuilder.AddRoles("Удалённые", muEntry.RemovedRoles);
+            await SendMessageToAuditAsync(true, embed: entryBuilder);
+
         }
 
         private async Task GuildMemberRemoved(DiscordClient c, GuildMemberRemoveEventArgs e)
         {
             var kickEntry = await GetNewEntryAsync() as DiscordAuditLogKickEntry;
+            
             if (kickEntry != null)
             {
+                
+
                 entryBuilder = EmbedBuilderExtensions.CreateForAudit(kickEntry, "Кик", $"Пользователь {kickEntry.Target.Username} был кикнут");
                 var reason = kickEntry.Reason.IsRelevant() ? kickEntry.Reason : "Не указана";
                 entryBuilder.AddField("Причина", reason);
+                await SendMessageToAuditAsync(embed: entryBuilder);
             }
             else
             {
+                var banEntry = await GetNewEntryAsync() as DiscordAuditLogBanEntry;
+                if (banEntry != null) return;
                 entryBuilder = new DiscordEmbedBuilder();
                 entryBuilder.SetAuthor(e.Member);
                 entryBuilder.SetTitle("Пользователь покинул нас");
                 entryBuilder.SetDescription($"{e.Member.Mention} joined {e.Member.JoinedAt.LocalDateTime}");
                 await SendMessageToAuditAsync(content: $"Пользователь {e.Member.Mention} покинул нас");
             }
-            await SendMessageToAuditAsync(embed: entryBuilder);
 
         }
         #endregion

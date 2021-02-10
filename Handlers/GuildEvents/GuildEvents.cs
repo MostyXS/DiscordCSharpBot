@@ -2,11 +2,14 @@
 using DSharpPlus;
 using DSharpPlus.Entities;
 using DSharpPlus.EventArgs;
+using DSharpPlus.Net.Models;
 using LSSKeeper.Extensions;
 using Newtonsoft.Json;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 
 namespace LSSKeeper
@@ -24,7 +27,10 @@ namespace LSSKeeper
         #region Config Params
         [JsonProperty]
         ulong? channelId;
-        
+        [JsonProperty]
+        Dictionary<string, string> phraseResponses = new Dictionary<string, string>();
+        [JsonProperty]
+        List<string> blacklistedWords = new List<string>();   
         #endregion
 
         public void TryInitializeAsync(DiscordClient c, DiscordGuild defaultGuild) //Subscribe event methods to current guild methods //Need to modify ref
@@ -37,6 +43,8 @@ namespace LSSKeeper
                 channelId = json.channelId;
                 if (channelId != null)
                     auditChannel = defaultGuild.GetChannel((ulong)channelId);
+                phraseResponses = json.phraseResponses;
+
             }
             catch (Exception e)
             {
@@ -52,13 +60,15 @@ namespace LSSKeeper
 
             c.ChannelPinsUpdated += ChannelPinsUpdated; //Done 100%
             c.VoiceStateUpdated += VoiceStateUpdated; //Done 100%
+
+            c.MessageCreated += MessageCreated;
             c.MessageUpdated += MessageUpdated;//Done 100% //Not with audit log
             c.MessageDeleted += MessageDeleted; //Done 100%
 
             c.GuildRoleCreated += GuildRoleCreated; //Done 100%
             c.GuildRoleUpdated += GuildRoleUpdated; //Done 100%
             c.GuildRoleDeleted += GuildRoleDeleted; //Done 100%
-            //c.UserUpdated += UserUpdated;
+            c.UserUpdated += UserUpdated;
 
             c.ChannelCreated += ChannelCreated; //Done 100%
             c.ChannelUpdated += ChannelUpdated; //Done 100%
@@ -73,10 +83,8 @@ namespace LSSKeeper
 
         }
 
-        /*private async Task UserUpdated(DiscordClient sender, UserUpdateEventArgs e)
-        {
-            Console.WriteLine("User updated");
-        }*/
+        
+
         #region Commands
         public async Task SetChannelAsync(DiscordChannel channel)
         {
@@ -85,6 +93,58 @@ namespace LSSKeeper
             await SaveAsync();
         }
 
+
+        public async Task<bool> TryBlacklistWordAsync(string p)
+        {
+            if (blacklistedWords.Contains(p)) return false;
+            
+            blacklistedWords.Add(p);
+            await SaveAsync();
+            return true;
+        }
+        
+
+        public async Task<bool> TryDeblacklistWordAsync(string word)
+        {
+            if(blacklistedWords.Remove(word))
+            {
+                await SaveAsync();
+                return true;
+            }
+            return false;
+        }
+        public List<string> GetBlacklistedWords()
+        {
+            return blacklistedWords;
+        }
+        //-------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
+        
+        public async Task<bool> TryAddResponseAsync(string keyPhrase, string response)
+        {
+            if (phraseResponses.ContainsKey(keyPhrase)) return false;
+            
+            phraseResponses.Add(keyPhrase, response);
+            await SaveAsync();
+            return true;
+        }
+        public async Task<bool> TryRemoveResponseAsync(string keyPhrase)
+        {
+            if (phraseResponses.Remove(keyPhrase))
+            {
+                await SaveAsync();
+                return true;
+            }
+            return false;
+
+        }
+        public string[] GetResponses()
+        {
+            return phraseResponses.Keys.ToArray();
+        }
+        #endregion
+        #region Config Management
         private async Task SaveAsync()
         {
             try
@@ -92,15 +152,13 @@ namespace LSSKeeper
                 var jsonString = JsonConvert.SerializeObject(this);
                 await File.WriteAllTextAsync(ConfigNames.GUILDEVENTS, jsonString);
             }
-            catch(Exception e)
+            catch (Exception e)
             {
                 Console.Error.WriteLine("Не удалось сохранить конфиг аудит лога " + e.Message);
             }
         }
         #endregion
-        #region Config Management
-
-        #endregion
+        #region Actions
         #region Guild Actions
         private async Task IntegrationsUpdated(DiscordClient sender, GuildIntegrationsUpdateEventArgs e)
         {
@@ -319,8 +377,6 @@ namespace LSSKeeper
             await SendMessageToAuditAsync(embed: entryBuilder);
         }
 
-
-
         #endregion
         #region Ban Actions
         private async Task GuildBanAdded(DiscordClient sender, GuildBanAddEventArgs e)
@@ -343,6 +399,25 @@ namespace LSSKeeper
 
         #endregion
         #region Message Actions
+        private async Task MessageCreated(DiscordClient sender, MessageCreateEventArgs e)
+        {
+            var msgContent = e.Message.Content;
+            if (blacklistedWords.Any((x) => msgContent.Contains(x)))
+            {
+                await e.Message.DeleteAsync();
+                await e.Channel.SendTempMessageAsync($"Так говорить нельзя, фу таким быть {e.Author.Mention}");
+                return;
+            }
+
+            foreach (var pr in phraseResponses)
+            {
+                if (e.Message.Content.Contains(pr.Key))
+                {
+                    await e.Channel.SendMessageAsync(pr.Value);
+                    return;
+                }
+            }
+        }
         private async Task MessageUpdated(DiscordClient sender, MessageUpdateEventArgs e)
         {
             if (e.Author == null || e.Author.IsBot) return;
@@ -352,9 +427,12 @@ namespace LSSKeeper
                 Title = $"Сообщение отредактировано в канале {e.Message.Channel.Name}"
             };
 
+            if (e.MessageBefore?.Content == e.Message.Content) return;
+
             string oldContent = e.MessageBefore != null && e.MessageBefore.Content.IsRelevant() ?
                 e.MessageBefore.Content :
                 "Информация о старом содержании некэширована";
+
             entryBuilder.AddBeforeAfter("Содержание", oldContent, e.Message.Content);
             entryBuilder.AddField("Прямая ссылка", e.Message.JumpLink.AbsoluteUri);
             await SendMessageToAuditAsync(embed: entryBuilder);
@@ -377,6 +455,7 @@ namespace LSSKeeper
             {
                 if (msg.Author.IsBot) return;
                 entryBuilder.SetAuthor(msg.Author);
+                entryBuilder.WithFooter($"Время действия {DateTime.Now}")
             }
             else
             {
@@ -422,47 +501,84 @@ namespace LSSKeeper
         }
         #endregion
         #region Member Actions
-        private async Task GuildMemberAdded(DiscordClient c, GuildMemberAddEventArgs e)
+        private async Task GuildMemberAdded(DiscordClient c, GuildMemberAddEventArgs e)   
         {
+            var name = e.Member.Username;
+            if (HasBlacklistedWord(name))
+            {
+                await auditChannel.SendMessageAsync("Пользователь в теории забанен" + e.Member.Mention);
+
+                //await e.Member.BanAsync(reason: "Запрещённое слово в никнейме");
+                return;
+            }
+            
             var userDM = await e.Member.CreateDmChannelAsync();
             await userDM?.SendMessageAsync("Добро пожаловать в ЛСС!");
         }
 
-        private async Task GuildMemberUpdated(DiscordClient sender, GuildMemberUpdateEventArgs e)
+
+       
+        private async Task UserUpdated(DiscordClient sender, UserUpdateEventArgs e)
         {
 
-            var muEntry = await GetNewEntryAsync() as DiscordAuditLogMemberUpdateEntry;
+            var member = await defaultGuild.GetMemberAsync(e.UserAfter.Id);
+            if (member == null) return;
+            entryBuilder = new DiscordEmbedBuilder();
+            entryBuilder.SetAuthor(e.UserAfter);
+            entryBuilder.SetTitle("Обновление параметров пользователя");
 
-            if (muEntry == null) return;
-            /*{
-                entryBuilder = new DiscordEmbedBuilder();
-                entryBuilder.SetAuthor(e.Member);
-                entryBuilder.SetTitle("Изменение пользователя");
-                if (e.NicknameBefore != e.NicknameAfter)
-                    entryBuilder.AddBeforeAfter("Изменение ника", e.NicknameBefore, e.NicknameAfter);
-                if (entryBuilder.Fields.Count == 0) return;
-                await SendMessageToAuditAsync(false, embed: entryBuilder);
+            if (e.UserBefore.Username != e.UserAfter.Username)
+            {
+                if (HasBlacklistedWord(e.UserAfter.Username))
+                {
+                    await auditChannel.SendMessageAsync("Пользователь в теории забанен" + member.Mention);
+                    //await member.BanAsync(reason: "Запрещённое слово в никнейме");
+                    return;
+                }
+                entryBuilder.AddBeforeAfter("Имя", e.UserBefore.Username, e.UserAfter.Username);
             }
-            else*/
+            if (e.UserBefore.Discriminator != e.UserAfter.Discriminator)
+            {
+                entryBuilder.AddBeforeAfter("Дискриминатор", e.UserBefore.Discriminator, e.UserAfter.Discriminator);
+            }
+            if (e.UserBefore.AvatarUrl != null && e.UserBefore.AvatarUrl != e.UserAfter.AvatarUrl)
+            {
+                entryBuilder.SetTitle("Пользователь обновил аватар");
+                try
+                {
+                    entryBuilder.WithImageUrl(e.UserAfter.AvatarUrl);
+                }
+                catch
+                {
+                    entryBuilder.SetDescription("Не удалось установить ссылку на изображение");
+                }
+            }
+            await SendMessageToAuditAsync(embed: entryBuilder);
 
+        }
+        private async Task GuildMemberUpdated(DiscordClient sender, GuildMemberUpdateEventArgs e)
+        {
+            var muEntry = await GetNewEntryAsync() as DiscordAuditLogMemberUpdateEntry;
+            if (muEntry == null) return;
             entryBuilder = EmbedBuilderExtensions.CreateForAudit(muEntry, $"Изменение пользователя {muEntry.Target.Username}");
             if (muEntry.UserResponsible.IsBot) return;
+            if(HasBlacklistedWord(muEntry.NicknameChange.After))
+            {
+                await muEntry.Target.ModifyAsync((x) => x.Nickname = muEntry.Target.Username);
+                return;
+            }
             entryBuilder.AddNamePropertyChange(muEntry.NicknameChange);
-
             entryBuilder.AddRoles("Добавленные", muEntry.AddedRoles);
             entryBuilder.AddRoles("Удалённые", muEntry.RemovedRoles);
             await SendMessageToAuditAsync(true, embed: entryBuilder);
 
         }
-
         private async Task GuildMemberRemoved(DiscordClient c, GuildMemberRemoveEventArgs e)
         {
             var kickEntry = await GetNewEntryAsync() as DiscordAuditLogKickEntry;
             
             if (kickEntry != null)
             {
-                
-
                 entryBuilder = EmbedBuilderExtensions.CreateForAudit(kickEntry, "Кик", $"Пользователь {kickEntry.Target.Username} был кикнут");
                 var reason = kickEntry.Reason.IsRelevant() ? kickEntry.Reason : "Не указана";
                 entryBuilder.AddField("Причина", reason);
@@ -481,7 +597,12 @@ namespace LSSKeeper
 
         }
         #endregion
+        #endregion
         #region Private Methods
+        private bool HasBlacklistedWord(string name)
+        {
+            return blacklistedWords.Any((x) => name.Contains(x));
+        }
         private async Task<DiscordAuditLogEntry> GetNewEntryAsync()
         {
             try

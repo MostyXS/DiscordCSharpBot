@@ -26,6 +26,7 @@ namespace LSSKeeper.Main
         public async Task MainAsync()
         {
 
+
             await AssignDefaultConfigurationsAsync();
 
             await SubscribeToEventHandlers();

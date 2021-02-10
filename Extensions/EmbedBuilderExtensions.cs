@@ -46,7 +46,6 @@ namespace LSSKeeper.Extensions
                 string ffContent = firstField != null ? $"Первое поле\nИмя: {firstField.Name}\nСодержание: {firstField.Value}" : "";*/
                 builder.AddField("Содержание первого вложения:", $"Заголовок: {firstEmbed.Title}\nОписание: {firstEmbed.Description}");
             }
-            
         }
         public static void SetAuthor(this DiscordEmbedBuilder builder, DiscordUser user)
         {

@@ -1,7 +1,7 @@
 ﻿using DSharpPlus.CommandsNext;
 using DSharpPlus.CommandsNext.Attributes;
 using DSharpPlus.Entities;
-using System.Collections.Generic;
+using LSSKeeper.Extensions;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -19,7 +19,7 @@ namespace LSSKeeper.Commands
         [Command("getGuildId")]
         public async Task GetGuildId(CommandContext ctx)
         {
-            await ctx.Channel.SendMessageAsync(ctx.Guild.Id.ToString());
+            await ctx.Channel.SendTempMessageAsync(ctx.Guild.Id.ToString());
         }
 
 

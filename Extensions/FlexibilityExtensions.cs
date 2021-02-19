@@ -7,7 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace LSSKeeper.Extensions
+namespace Valera.Extensions
 {
     public static class FlexibilityExtensions
     {

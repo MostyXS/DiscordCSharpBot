@@ -1,11 +1,11 @@
 ﻿using DSharpPlus.CommandsNext;
 using DSharpPlus.CommandsNext.Attributes;
 using DSharpPlus.Entities;
-using LSSKeeper.Extensions;
-using LSSKeeper.Main;
+using Valera.Extensions;
+using Valera.Main;
 using System.Threading.Tasks;
 
-namespace LSSKeeper.Commands
+namespace Valera.Commands
 {
     class RoleGranterCommands : BaseCommandModule
     {

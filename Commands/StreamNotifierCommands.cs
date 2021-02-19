@@ -1,12 +1,12 @@
 ﻿using DSharpPlus.CommandsNext;
 using DSharpPlus.CommandsNext.Attributes;
 using DSharpPlus.Entities;
-using LSSKeeper.Extensions;
-using LSSKeeper.Main;
-using LSSKeeper.Notifications;
+using Valera.Extensions;
+using Valera.Main;
+using Valera.Notifications;
 using System.Threading.Tasks;
 
-namespace LSSKeeper.Commands
+namespace Valera.Commands
 {
     class StreamNotifierCommands : BaseCommandModule
     {

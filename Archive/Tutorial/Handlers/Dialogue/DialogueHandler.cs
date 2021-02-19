@@ -1,12 +1,12 @@
 ﻿using DSharpPlus;
 using DSharpPlus.Entities;
-using LSSKeeper.Handlers.Dialogue.Steps;
+using Valera.Handlers.Dialogue.Steps;
 using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace LSSKeeper.Handlers.Dialogue
+namespace Valera.Handlers.Dialogue
 {
     class DialogueHandler
     {

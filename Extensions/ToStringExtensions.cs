@@ -6,7 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace LSSKeeper.Extensions
+namespace Valera.Extensions
 {
     public static class ToStringExtensions
     {
@@ -70,11 +70,7 @@ namespace LSSKeeper.Extensions
 
             foreach(var a in attachments)
             {
-                result.Add(a.FileName);
-                if(a.Url !=null)
-                {
-                    result.Add(a.Url);
-                }
+                result.Add($"[{a.FileName}]({a.Url})");
             }
             return result;
         }

@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace LSSKeeper.Handlers.Dialogue.Steps
+namespace Valera.Handlers.Dialogue.Steps
 {
     public interface IDialogueStep
     {

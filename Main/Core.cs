@@ -3,8 +3,8 @@ using DSharpPlus.CommandsNext;
 using DSharpPlus.Entities;
 using DSharpPlus.Interactivity;
 using DSharpPlus.Interactivity.Extensions;
-using LSSKeeper.Commands;
-using LSSKeeper.Notifications;
+using Valera.Commands;
+using Valera.Notifications;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using System;
@@ -12,7 +12,7 @@ using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace LSSKeeper.Main
+namespace Valera.Main
 {
     public class Core
     {
@@ -32,7 +32,7 @@ namespace LSSKeeper.Main
             await SubscribeToEventHandlers();
 
             RegisterAllCommands();
-
+            
             await client.ConnectAsync();
             await Task.Delay(-1);
         }
@@ -62,11 +62,7 @@ namespace LSSKeeper.Main
         }
         private async Task AssignDefaultConfigurationsAsync()
         {
-            var jsonString = string.Empty;
-
-            using (var fs = File.OpenRead("config.json"))
-            using (var sr = new StreamReader(fs, new UTF8Encoding(false)))
-                jsonString = await sr.ReadToEndAsync().ConfigureAwait(false);
+            var jsonString = await File.ReadAllTextAsync("config.json");
             var defaultConfig = JsonConvert.DeserializeObject<DefaultJson>(jsonString);
 
             client = new DiscordClient(new DiscordConfiguration()

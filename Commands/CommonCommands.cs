@@ -1,11 +1,11 @@
 ﻿using DSharpPlus.CommandsNext;
 using DSharpPlus.CommandsNext.Attributes;
 using DSharpPlus.Entities;
-using LSSKeeper.Extensions;
+using Valera.Extensions;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace LSSKeeper.Commands
+namespace Valera.Commands
 {
     class CommonCommands : BaseCommandModule
     {
@@ -15,6 +15,7 @@ namespace LSSKeeper.Commands
             DiscordUser[] owners = ctx.Client.CurrentApplication.Owners.ToArray();
             await ctx.Channel.SendMessageAsync(owners[0].Mention);
         }
+
         [RequireOwner]
         [Command("getGuildId")]
         public async Task GetGuildId(CommandContext ctx)

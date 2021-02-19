@@ -1,13 +1,13 @@
 ﻿using DSharpPlus;
 using DSharpPlus.Entities;
-using LSSKeeper.Extensions;
+using Valera.Extensions;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace LSSKeeper
+namespace Valera
 {
     public class OverwriteUpdateInformation
     {

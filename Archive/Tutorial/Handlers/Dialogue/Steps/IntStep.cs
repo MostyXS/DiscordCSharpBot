@@ -4,7 +4,7 @@ using DSharpPlus.Interactivity.Extensions;
 using System;
 using System.Threading.Tasks;
 
-namespace LSSKeeper.Handlers.Dialogue.Steps
+namespace Valera.Handlers.Dialogue.Steps
 {
     class IntStep : DialogueStepBase
     {

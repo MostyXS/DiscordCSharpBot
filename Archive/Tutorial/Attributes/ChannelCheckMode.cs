@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace LSSKeeper.Attributes
+namespace Valera.Attributes
 {
     public enum ChannelCheckMode
     {

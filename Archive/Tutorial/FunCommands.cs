@@ -2,16 +2,16 @@
 using DSharpPlus.CommandsNext.Attributes;
 using DSharpPlus.Entities;
 using DSharpPlus.Interactivity.Extensions;
-using LSSKeeper.Attributes;
-using LSSKeeper.Handlers.Dialogue;
-using LSSKeeper.Handlers.Dialogue.Steps;
+using Valera.Attributes;
+using Valera.Handlers.Dialogue;
+using Valera.Handlers.Dialogue.Steps;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace LSSKeeper.Commands
+namespace Valera.Commands
 {
     public class FunCommands : BaseCommandModule
     {

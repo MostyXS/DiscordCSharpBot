@@ -1,7 +1,10 @@
-﻿using System;
+﻿using Valera.Handlers;
+using System;
+using System.Collections.Generic;
 using System.Text;
+using System.Threading.Tasks;
 
-namespace LSSKeeper.Main
+namespace Valera.Main
 {
     class Start
     {
@@ -9,7 +12,11 @@ namespace LSSKeeper.Main
         {
             Console.OutputEncoding = Encoding.UTF8;
             var bot = new Core();
-            bot.MainAsync().GetAwaiter().GetResult();
+            var tasks = new List<Task>
+            {
+                bot.MainAsync(),
+                BirthdayNotifier.
+            }
         }
     }
 }

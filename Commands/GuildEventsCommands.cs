@@ -1,13 +1,13 @@
 ﻿using DSharpPlus;
 using DSharpPlus.CommandsNext;
 using DSharpPlus.CommandsNext.Attributes;
-using LSSKeeper.Extensions;
-using LSSKeeper.Main;
+using Valera.Extensions;
+using Valera.Main;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace LSSKeeper.Commands
+namespace Valera.Commands
 {
     class GuildEventsCommands : BaseCommandModule
     {

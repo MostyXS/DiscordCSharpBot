@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace LSSKeeper.Notifications
+namespace Valera.Notifications
 {
     public enum StreamerInfoType
     {

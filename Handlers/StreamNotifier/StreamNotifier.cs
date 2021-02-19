@@ -2,8 +2,8 @@
 using DSharpPlus.CommandsNext;
 using DSharpPlus.Entities;
 using DSharpPlus.EventArgs;
-using LSSKeeper.Extensions;
-using LSSKeeper.Main;
+using Valera.Extensions;
+using Valera.Main;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -11,7 +11,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace LSSKeeper.Notifications
+namespace Valera.Notifications
 {
     [JsonObject(MemberSerialization = MemberSerialization.Fields)]
     public class StreamNotifier

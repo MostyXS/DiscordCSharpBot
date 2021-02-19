@@ -4,7 +4,7 @@ using DSharpPlus.Entities;
 using DSharpPlus.Interactivity.Extensions;
 using System.Threading.Tasks;
 
-namespace LSSKeeper.Commands
+namespace Valera.Commands
 {
     class TeamCommands : BaseCommandModule
     {

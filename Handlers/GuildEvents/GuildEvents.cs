@@ -3,7 +3,7 @@ using DSharpPlus;
 using DSharpPlus.Entities;
 using DSharpPlus.EventArgs;
 using DSharpPlus.Net.Models;
-using LSSKeeper.Extensions;
+using Valera.Extensions;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -12,7 +12,7 @@ using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 
-namespace LSSKeeper
+namespace Valera
 {
 
     [JsonObject(MemberSerialization.OptIn)]
@@ -455,7 +455,7 @@ namespace LSSKeeper
             {
                 if (msg.Author.IsBot) return;
                 entryBuilder.SetAuthor(msg.Author);
-                entryBuilder.WithFooter($"Время действия {DateTime.Now}")
+                entryBuilder.WithFooter($"Время действия {DateTime.Now.ToLongDateString()}");
             }
             else
             {
@@ -481,7 +481,7 @@ namespace LSSKeeper
             if (invite.Channel != null)
                 entryBuilder.AddField("Предназначен для: ", invite.Channel.Name);
 
-            entryBuilder.AddField("Время истечения", invite.MaxAge.ToString());
+            entryBuilder.AddField("Время истечения", (invite.MaxAge/3600).ToString() + 'ч');
 
             entryBuilder.AddField("Максимальное количество использований", invite.MaxUses.ToString());
 

@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace LSSKeeper
+namespace Valera
 {
     public enum RoleAddResult
     {

@@ -29,7 +29,6 @@ namespace Volodya.Handlers
         {
             while (true)
             {
-                if (_defaultGuild == null) continue;
                 foreach(var member in membersBirthdays)
                 {
                     var info = member.Value;
@@ -43,7 +42,7 @@ namespace Volodya.Handlers
                             $":birthday:");
                     }
                 }
-                await Task.Delay(TimeSpan.FromMinutes(1d));
+                await Task.Delay(TimeSpan.FromMinutes(15d));
             }
         }
 

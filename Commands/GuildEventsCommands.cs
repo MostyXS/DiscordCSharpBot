@@ -1,13 +1,13 @@
 ﻿using DSharpPlus;
 using DSharpPlus.CommandsNext;
 using DSharpPlus.CommandsNext.Attributes;
-using Valera.Extensions;
-using Valera.Main;
+using Volodya.Extensions;
+using Volodya.Main;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace Valera.Commands
+namespace Volodya.Commands
 {
     class GuildEventsCommands : BaseCommandModule
     {

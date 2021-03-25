@@ -6,7 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Valera.Extensions
+namespace Volodya.Extensions
 {
     public static class ToStringExtensions
     {

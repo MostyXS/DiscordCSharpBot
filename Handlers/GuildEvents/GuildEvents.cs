@@ -3,7 +3,7 @@ using DSharpPlus;
 using DSharpPlus.Entities;
 using DSharpPlus.EventArgs;
 using DSharpPlus.Net.Models;
-using Valera.Extensions;
+using Volodya.Extensions;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -12,7 +12,7 @@ using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 
-namespace Valera
+namespace Volodya
 {
 
     [JsonObject(MemberSerialization.OptIn)]
@@ -427,7 +427,7 @@ namespace Valera
                 Title = $"Сообщение отредактировано в канале {e.Message.Channel.Name}"
             };
 
-            if (e.MessageBefore?.Content == e.Message.Content) return;
+            if (e.MessageBefore != null && e.MessageBefore.Content.Equals(e.Message.Content, StringComparison.OrdinalIgnoreCase)) return;
 
             string oldContent = e.MessageBefore != null && e.MessageBefore.Content.IsRelevant() ?
                 e.MessageBefore.Content :
@@ -562,7 +562,7 @@ namespace Valera
             if (muEntry == null) return;
             entryBuilder = EmbedBuilderExtensions.CreateForAudit(muEntry, $"Изменение пользователя {muEntry.Target.Username}");
             if (muEntry.UserResponsible.IsBot) return;
-            if(HasBlacklistedWord(muEntry.NicknameChange.After))
+            if(HasBlacklistedWord(muEntry.NicknameChange?.After))
             {
                 await muEntry.Target.ModifyAsync((x) => x.Nickname = muEntry.Target.Username);
                 return;

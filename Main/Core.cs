@@ -3,29 +3,32 @@ using DSharpPlus.CommandsNext;
 using DSharpPlus.Entities;
 using DSharpPlus.Interactivity;
 using DSharpPlus.Interactivity.Extensions;
-using Valera.Commands;
-using Valera.Notifications;
+using Volodya.Commands;
+using Volodya.Notifications;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using System;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
+using Volodya.Handlers;
+using LSSKeeper.Commands;
 
-namespace Valera.Main
+namespace Volodya.Main
 {
     public class Core
     {
-        DiscordClient client;
-        public static CommandsNextExtension Commands { get; private set; }
+        private DiscordClient _client;
+        private CommandsNextExtension _commands;
 
-        static DiscordGuild defaultGuild;
+        private DiscordGuild _defaultGuild;
+
+        public event Action OnInitialize;
 
 
        
         public async Task MainAsync()
         {
-
 
             await AssignDefaultConfigurationsAsync();
 
@@ -33,39 +36,38 @@ namespace Valera.Main
 
             RegisterAllCommands();
             
-            await client.ConnectAsync();
+            await _client.ConnectAsync();
             await Task.Delay(-1);
         }
 
         private async Task SubscribeToEventHandlers()
         {
-
             var rg = new RoleGranter();
-            await rg.TryInitializeAsync(client, defaultGuild);
+            await rg.TryInitializeAsync(_client, _defaultGuild);
             RoleGranterCommands.RG = rg;
 
             var sn = new StreamNotifier();
-            await sn.TryInitializeAsync(client, defaultGuild);
+            await sn.TryInitializeAsync(_client, _defaultGuild);
             StreamNotifierCommands.SN = sn;
 
             var ge  = new GuildEvents();
-            ge.TryInitializeAsync(client, defaultGuild);
+            ge.TryInitializeAsync(_client, _defaultGuild);
             GuildEventsCommands.GE = ge;
         }
 
         private void RegisterAllCommands()
         {
-            Commands.RegisterCommands<GuildEventsCommands>();
-            Commands.RegisterCommands<RoleGranterCommands>();
-            Commands.RegisterCommands<StreamNotifierCommands>();
-            Commands.RegisterCommands<CommonCommands>();
+            _commands.RegisterCommands<GuildEventsCommands>();
+            _commands.RegisterCommands<RoleGranterCommands>();
+            _commands.RegisterCommands<StreamNotifierCommands>();
+            _commands.RegisterCommands<CommonCommands>();
         }
         private async Task AssignDefaultConfigurationsAsync()
         {
             var jsonString = await File.ReadAllTextAsync("config.json");
             var defaultConfig = JsonConvert.DeserializeObject<DefaultJson>(jsonString);
 
-            client = new DiscordClient(new DiscordConfiguration()
+            _client = new DiscordClient(new DiscordConfiguration()
             {
                 Token = defaultConfig.Token,
                 TokenType = TokenType.Bot,
@@ -74,14 +76,23 @@ namespace Valera.Main
                 MessageCacheSize = 131072
                 
             });
-            Commands = client.UseCommandsNext(new CommandsNextConfiguration()
+            _commands = _client.UseCommandsNext(new CommandsNextConfiguration()
             {
                 StringPrefixes = new string[] { defaultConfig.Prefix },
                 EnableDms = true,
                 EnableMentionPrefix = true,
                 DmHelp = true
             });
-            defaultGuild = await client.GetGuildAsync(defaultConfig.GuildId);
+            _defaultGuild = await _client.GetGuildAsync(defaultConfig.GuildId);
+            OnInitialize?.Invoke();
+            
+        }
+
+        public void AddBirthdayNotifierModule(BirthdayNotifier bdNotifier)
+        {
+            bdNotifier.TryInitializeAsync(_defaultGuild);
+            BirthdayNotifierCommands.BN = bdNotifier;
+            _commands.RegisterCommands<BirthdayNotifierCommands>();
             
         }
     }

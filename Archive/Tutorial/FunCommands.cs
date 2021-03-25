@@ -2,16 +2,16 @@
 using DSharpPlus.CommandsNext.Attributes;
 using DSharpPlus.Entities;
 using DSharpPlus.Interactivity.Extensions;
-using Valera.Attributes;
-using Valera.Handlers.Dialogue;
-using Valera.Handlers.Dialogue.Steps;
+using Volodya.Attributes;
+using Volodya.Handlers.Dialogue;
+using Volodya.Handlers.Dialogue.Steps;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Valera.Commands
+namespace Volodya.Commands
 {
     public class FunCommands : BaseCommandModule
     {

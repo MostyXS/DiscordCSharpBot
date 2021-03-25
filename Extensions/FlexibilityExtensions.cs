@@ -7,10 +7,31 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Valera.Extensions
+namespace Volodya.Extensions
 {
     public static class FlexibilityExtensions
     {
+
+        public static string ToRusAge(this int integer)
+        {
+            if(integer % 100 >= 5 && integer % 100 <= 20 || integer % 10 >= 5)
+            {
+                return $"{integer} лет";
+            }
+            else if(integer % 10 == 1)
+            {
+                return $"{integer} год";
+            }
+            else if(integer % 10 < 5)
+            {
+                return $"{integer} года";
+            }
+            else
+            {
+                return $"{integer}";
+            }
+            
+        }
         public static bool IsRelevant<T>(this IReadOnlyList<T> list)
         {
             return list != null && list.Count > 0;

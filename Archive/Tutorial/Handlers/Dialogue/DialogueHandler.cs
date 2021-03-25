@@ -1,12 +1,12 @@
 ﻿using DSharpPlus;
 using DSharpPlus.Entities;
-using Valera.Handlers.Dialogue.Steps;
+using Volodya.Handlers.Dialogue.Steps;
 using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Valera.Handlers.Dialogue
+namespace Volodya.Handlers.Dialogue
 {
     class DialogueHandler
     {

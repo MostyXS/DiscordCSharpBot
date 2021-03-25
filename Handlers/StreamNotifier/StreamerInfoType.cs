@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Valera.Notifications
+namespace Volodya.Notifications
 {
     public enum StreamerInfoType
     {

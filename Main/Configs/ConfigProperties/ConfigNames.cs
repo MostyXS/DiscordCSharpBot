@@ -1,4 +1,4 @@
-﻿namespace Valera
+﻿namespace Volodya
 {
     public struct ConfigNames
     {

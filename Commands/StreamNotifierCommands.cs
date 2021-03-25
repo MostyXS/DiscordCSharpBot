@@ -1,16 +1,21 @@
 ﻿using DSharpPlus.CommandsNext;
 using DSharpPlus.CommandsNext.Attributes;
 using DSharpPlus.Entities;
-using Valera.Extensions;
-using Valera.Main;
-using Valera.Notifications;
+using Volodya.Extensions;
+using Volodya.Main;
+using Volodya.Notifications;
 using System.Threading.Tasks;
 
-namespace Valera.Commands
+namespace Volodya.Commands
 {
     class StreamNotifierCommands : BaseCommandModule
     {
         public static StreamNotifier SN { private get; set; }
+
+        public StreamNotifierCommands(string zalupa)
+        {
+
+        }
 
         #region Main Commands 
         [RequirePermissions(DSharpPlus.Permissions.ManageRoles)]

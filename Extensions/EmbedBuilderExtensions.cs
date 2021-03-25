@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace Valera.Extensions
+namespace Volodya.Extensions
 {
     public static class EmbedBuilderExtensions
     {

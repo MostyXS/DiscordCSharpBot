@@ -2,8 +2,8 @@
 using DSharpPlus.CommandsNext;
 using DSharpPlus.Entities;
 using DSharpPlus.EventArgs;
-using Valera.Extensions;
-using Valera.Main;
+using Volodya.Extensions;
+using Volodya.Main;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -11,7 +11,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace Valera.Notifications
+namespace Volodya.Notifications
 {
     [JsonObject(MemberSerialization = MemberSerialization.Fields)]
     public class StreamNotifier

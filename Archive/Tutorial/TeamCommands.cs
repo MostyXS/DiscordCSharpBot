@@ -4,7 +4,7 @@ using DSharpPlus.Entities;
 using DSharpPlus.Interactivity.Extensions;
 using System.Threading.Tasks;
 
-namespace Valera.Commands
+namespace Volodya.Commands
 {
     class TeamCommands : BaseCommandModule
     {

@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Valera.Attributes
+namespace Volodya.Attributes
 {
     public enum ChannelCheckMode
     {

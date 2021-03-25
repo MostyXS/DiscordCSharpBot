@@ -1,13 +1,13 @@
 ﻿using DSharpPlus;
 using DSharpPlus.Entities;
-using Valera.Extensions;
+using Volodya.Extensions;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Valera
+namespace Volodya
 {
     public class OverwriteUpdateInformation
     {

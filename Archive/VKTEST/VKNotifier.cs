@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 using VkNet;
 using VkNet.Model;
 
-namespace Valera.VKNotifying
+namespace Volodya.VKNotifying
 {
     [JsonObject(MemberSerialization = MemberSerialization.Fields)]
     class VKNotifier
@@ -33,7 +33,7 @@ namespace Valera.VKNotifying
             VkApi api = new VkApi();
             api.Authorize(GetVkConfigParams());
 
-            var server = await api.Groups.GetLongPollServerAsync()
+            //var server = await api.Groups.GetLongPollServerAsync();
 
             while(true)
             {
@@ -53,7 +53,7 @@ namespace Valera.VKNotifying
         {
             return new ApiAuthParams()
             {
-                AccessToken = appToken
+                //AccessToken = appToken
             };
         }
 

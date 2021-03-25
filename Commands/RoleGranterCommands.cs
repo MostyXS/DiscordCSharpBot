@@ -1,11 +1,11 @@
 ﻿using DSharpPlus.CommandsNext;
 using DSharpPlus.CommandsNext.Attributes;
 using DSharpPlus.Entities;
-using Valera.Extensions;
-using Valera.Main;
+using Volodya.Extensions;
+using Volodya.Main;
 using System.Threading.Tasks;
 
-namespace Valera.Commands
+namespace Volodya.Commands
 {
     class RoleGranterCommands : BaseCommandModule
     {

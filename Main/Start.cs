@@ -1,10 +1,10 @@
-﻿using Valera.Handlers;
+﻿using Volodya.Handlers;
 using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Valera.Main
+namespace Volodya.Main
 {
     class Start
     {
@@ -12,11 +12,9 @@ namespace Valera.Main
         {
             Console.OutputEncoding = Encoding.UTF8;
             var bot = new Core();
-            var tasks = new List<Task>
-            {
-                bot.MainAsync(),
-                BirthdayNotifier.
-            }
+            var bdNotifier = new BirthdayNotifier();
+            bot.OnInitialize += () => bot.AddBirthdayNotifierModule(bdNotifier);
+            Task.WaitAll(bot.MainAsync(), bdNotifier.RunAsync());
         }
     }
 }

@@ -13,14 +13,14 @@ namespace LSSKeeper.Commands
     {
         public static BirthdayNotifier BN { private get; set; }
 
-        [Command("BNaddInfo")]
+        /*[Command("BNaddInfo")]
         [RequirePermissions(DSharpPlus.Permissions.ManageRoles)]
         private async Task AddBirthdayInfo( CommandContext ctx, DiscordM mem )
         {
             if()
 
             if(BN.AddInfo())
-        }
+        }*/
 
     }
 }

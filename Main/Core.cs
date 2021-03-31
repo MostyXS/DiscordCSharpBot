@@ -32,7 +32,7 @@ namespace Volodya.Main
             OnInitialize += async () => await InitializeModules();
 
             await InitializeConfig();
-
+            Commands.RegisterCommands<CommonCommands>();
             await _client.ConnectAsync();
             await Task.Delay(-1);
         }

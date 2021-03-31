@@ -55,7 +55,7 @@ namespace Volodya.Modules
                     membersBirthdays[(ulong)notifiedMember] = newInfo;
                     await SaveAsync();
                 }
-                await Task.Delay(TimeSpan.FromMinutes(.25d));
+                await Task.Delay(TimeSpan.FromMinutes(15d));
             }
         }
 

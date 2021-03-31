@@ -4,7 +4,7 @@ using DSharpPlus.Interactivity.Extensions;
 using System;
 using System.Threading.Tasks;
 
-namespace Volodya.Handlers.Dialogue.Steps
+namespace Volodya.Modules.Dialogue.Steps
 {
     class TextStep : DialogueStepBase
     {

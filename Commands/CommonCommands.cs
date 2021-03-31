@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace Volodya.Commands
 {
-    class CommonCommands : BaseCommandModule
+    public class CommonCommands : BaseCommandModule
     {
         [Command("author")]
         public async Task PrintAuthor(CommandContext ctx)

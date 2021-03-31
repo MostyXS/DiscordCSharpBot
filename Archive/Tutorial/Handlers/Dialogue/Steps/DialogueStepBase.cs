@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Volodya.Handlers.Dialogue.Steps
+namespace Volodya.Modules.Dialogue.Steps
 {
     public abstract class DialogueStepBase : IDialogueStep
     {

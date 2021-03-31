@@ -9,7 +9,7 @@ namespace Volodya.Commands
 {
     class RoleGranterCommands : BaseCommandModule
     {
-        public static RoleGranter RG { private get; set; }
+        public static RoleGranter RGranter { private get; set; }
 
         #region Main Commands
         [Command("RGcreate")]
@@ -27,18 +27,8 @@ namespace Volodya.Commands
                     "!RGCreate \"Заголовок\" \"Описание\" \"Название поля с ролями\"(Необязательно) \"Футер\"(Необязательно");
                 return;
             }
-            await RG.CreateRoleMessageAsync(ctx, title, description, rolesFieldName, footer);
+            await RGranter.CreateRoleMessageAsync(ctx, title, description, rolesFieldName, footer);
         }
-
-        /*[RequireOwner]
-        [Description("Для дебага, только владелец бота")]
-        [Command("rgreset")]
-        public async Task Reset(CommandContext ctx)
-        {
-            await RG.Reset();
-            await ctx.Channel.SendTempMessageAsync("Done");
-        }*/
-
 
         [Command("RGaddRole")]
         [RequirePermissions(DSharpPlus.Permissions.ManageRoles)]
@@ -54,7 +44,7 @@ namespace Volodya.Commands
                 return;
             }
             
-            RoleAddResult result = await RG.TryAddRoleAsync(ctx.Client, role, emoji, description);
+            RoleAddResult result = await RGranter.TryAddRoleAsync(ctx.Client, role, emoji, description);
             switch (result)
             {
                 case RoleAddResult.Succeed:
@@ -88,7 +78,7 @@ namespace Volodya.Commands
             {
                 await ctx.Channel.SendMessageAsync("Неверное форматирование !RGremoveRole {Упоминание роли через @}(Без фигурных скобок)");
             }
-            if(await RG.TryRemoveRoleAsync(ctx.Client, role))
+            if(await RGranter.TryRemoveRoleAsync(ctx.Client, role))
             {
                 await ctx.Channel.SendTempMessageAsync("Роль успешно удалена");
             }
@@ -109,7 +99,7 @@ namespace Volodya.Commands
                 await ctx.Channel.SendMessageAsync("Неверное форматирование !RGchangeRFName \"Заголовок\"");
                 return;
             }
-            await RG.ChangeEmbedAsync(title: content);
+            await RGranter.ChangeEmbedAsync(title: content);
         }
 
         [RequirePermissions(DSharpPlus.Permissions.ManageRoles)]
@@ -121,7 +111,7 @@ namespace Volodya.Commands
                 await ctx.Channel.SendMessageAsync("Неверное форматирование !RGchangeRFName \"Описание\"");
                 return;
             }
-            await RG.ChangeEmbedAsync(description: content);
+            await RGranter.ChangeEmbedAsync(description: content);
         }
 
         [Description("Меняет заголовок поля с ролями")]
@@ -134,7 +124,7 @@ namespace Volodya.Commands
                 await ctx.Channel.SendMessageAsync("Неверное форматирование !RGchangeRFName \"Название поля с ролями\"");
                 return;
             }
-            await RG.ChangeEmbedAsync(rfName: content);
+            await RGranter.ChangeEmbedAsync(rfName: content);
         }
         
         [RequirePermissions(DSharpPlus.Permissions.ManageRoles)]
@@ -146,7 +136,7 @@ namespace Volodya.Commands
                 await ctx.Channel.SendMessageAsync("Неверное форматирование !RGchangeRFName \"Футер\"");
                 return;
             }
-            await RG.ChangeEmbedAsync(footer: content);
+            await RGranter.ChangeEmbedAsync(footer: content);
         }
         #endregion
 

@@ -11,91 +11,71 @@ using System;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
-using Volodya.Handlers;
+using Volodya.Modules;
 using LSSKeeper.Commands;
+using LSSKeeper.Main;
 
 namespace Volodya.Main
 {
     public class Core
     {
         private DiscordClient _client;
-        private CommandsNextExtension _commands;
+        public static CommandsNextExtension Commands { get; private set; }
 
-        private DiscordGuild _defaultGuild;
+        private static DiscordGuild _defaultGuild;
 
         public event Action OnInitialize;
 
-
-       
+        private KeeperModule[] modules = new KeeperModule[] { new RoleGranter(), new StreamNotifier(), new AuditNotifier() };
         public async Task MainAsync()
         {
+            OnInitialize += async () => await InitializeModules();
 
-            await AssignDefaultConfigurationsAsync();
+            await InitializeConfig();
 
-            await SubscribeToEventHandlers();
-
-            RegisterAllCommands();
-            
             await _client.ConnectAsync();
             await Task.Delay(-1);
         }
 
-        private async Task SubscribeToEventHandlers()
+        private async Task InitializeModules()
         {
-            var rg = new RoleGranter();
-            await rg.TryInitializeAsync(_client, _defaultGuild);
-            RoleGranterCommands.RG = rg;
-
-            var sn = new StreamNotifier();
-            await sn.TryInitializeAsync(_client, _defaultGuild);
-            StreamNotifierCommands.SN = sn;
-
-            var ge  = new GuildEvents();
-            ge.TryInitializeAsync(_client, _defaultGuild);
-            GuildEventsCommands.GE = ge;
+            foreach(var module in modules)
+            {
+                await AddModuleAsync(module);
+            }
         }
 
-        private void RegisterAllCommands()
-        {
-            _commands.RegisterCommands<GuildEventsCommands>();
-            _commands.RegisterCommands<RoleGranterCommands>();
-            _commands.RegisterCommands<StreamNotifierCommands>();
-            _commands.RegisterCommands<CommonCommands>();
-        }
-        private async Task AssignDefaultConfigurationsAsync()
+        private async Task InitializeConfig()
         {
             var jsonString = await File.ReadAllTextAsync("config.json");
-            var defaultConfig = JsonConvert.DeserializeObject<DefaultJson>(jsonString);
+            var _config = JsonConvert.DeserializeObject<DefaultJson>(jsonString);
 
             _client = new DiscordClient(new DiscordConfiguration()
             {
-                Token = defaultConfig.Token,
+                Token = _config.Token,
                 TokenType = TokenType.Bot,
                 AutoReconnect = true,
                 MinimumLogLevel = LogLevel.Debug,
                 MessageCacheSize = 131072
                 
             });
-            _commands = _client.UseCommandsNext(new CommandsNextConfiguration()
+            Commands = _client.UseCommandsNext(new CommandsNextConfiguration()
             {
-                StringPrefixes = new string[] { defaultConfig.Prefix },
+                StringPrefixes = new string[] { _config.Prefix },
                 EnableDms = true,
                 EnableMentionPrefix = true,
                 DmHelp = true
             });
-            _defaultGuild = await _client.GetGuildAsync(defaultConfig.GuildId);
+            _defaultGuild = await _client.GetGuildAsync(_config.GuildId);
             OnInitialize?.Invoke();
-            
         }
-
-        public void AddBirthdayNotifierModule(BirthdayNotifier bdNotifier)
+        public async Task AddModuleAsync(KeeperModule module)
         {
-            bdNotifier.TryInitializeAsync(_defaultGuild);
-            BirthdayNotifierCommands.BN = bdNotifier;
-            _commands.RegisterCommands<BirthdayNotifierCommands>();
-            
+            await module.InitializeAsync(_client, _defaultGuild);
+            module.RegisterCommands(Commands);
+
         }
     }
-
+    
 
 }

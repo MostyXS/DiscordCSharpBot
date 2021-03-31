@@ -11,38 +11,53 @@ using System.IO;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
+using LSSKeeper.Main;
+using LSSKeeper.Commands;
+using Volodya.Commands;
+using DSharpPlus.CommandsNext;
 
 namespace Volodya
 {
 
     [JsonObject(MemberSerialization.OptIn)]
-    public class GuildEvents
+    public class AuditNotifier : KeeperModule
     {
-        DiscordChannel auditChannel;
-        DiscordAuditLogEntry newEntry;
-        DiscordAuditLogEntry lastHandledEntry;
+        private DiscordChannel _auditChannel;
+        private DiscordAuditLogEntry _newEntry;
+        private DiscordAuditLogEntry _lastHandledEntry;
 
-        DiscordEmbedBuilder entryBuilder = new DiscordEmbedBuilder();
-        DiscordGuild defaultGuild;
-        #region Config Params
-        [JsonProperty]
-        ulong? channelId;
-        [JsonProperty]
-        Dictionary<string, string> phraseResponses = new Dictionary<string, string>();
-        [JsonProperty]
-        List<string> blacklistedWords = new List<string>();   
-        #endregion
+        private DiscordEmbedBuilder _entryBuilder = new DiscordEmbedBuilder();
 
-        public void TryInitializeAsync(DiscordClient c, DiscordGuild defaultGuild) //Subscribe event methods to current guild methods //Need to modify ref
+        [JsonProperty]
+        private ulong? _channelId;
+        [JsonProperty]
+        private Dictionary<string, string> phraseResponses = new Dictionary<string, string>();
+        [JsonProperty]
+        private List<string>  blacklistedWords = new List<string>();
+
+
+        #region Module Methods
+        public override async Task InitializeAsync(DiscordClient c, DiscordGuild guild) //Subscribe event methods to current guild methods //Need to modify ref
         {
-            this.defaultGuild = defaultGuild;
+            await base.InitializeAsync(c, guild);
+            SubscribeToAllEvents();
+        }
+        public override void RegisterCommands(CommandsNextExtension commands)
+        {
+            AuditNotifierCommands.ANotifier = this;
+            CommandsType = typeof(AuditNotifierCommands);
+            base.RegisterCommands(commands);
+        }
+
+        protected override async Task InitializeConfigAsync()
+        {
             try
             {
-                var jsonString = File.ReadAllText(ConfigNames.GUILDEVENTS);
-                var json = JsonConvert.DeserializeObject<GuildEvents>(jsonString);
-                channelId = json.channelId;
-                if (channelId != null)
-                    auditChannel = defaultGuild.GetChannel((ulong)channelId);
+                var jsonString = await File.ReadAllTextAsync(ConfigNames.GUILDEVENTS);
+                var json = JsonConvert.DeserializeObject<AuditNotifier>(jsonString);
+                _channelId = json._channelId;
+                if (_channelId != null)
+                    _auditChannel = DefaultGuild.GetChannel((ulong)_channelId);
                 phraseResponses = json.phraseResponses;
 
             }
@@ -51,49 +66,28 @@ namespace Volodya
                 Console.Error.WriteLine("Не удалось инициализировать конфиг аудит лога " + e.Message);
 
             }
-            c.GuildMemberAdded += GuildMemberAdded; //Done 100% //Not with audit log
-            c.GuildMemberUpdated += GuildMemberUpdated; //Done 100%
-            c.GuildMemberRemoved += GuildMemberRemoved; //Done 100%
-
-            c.GuildBanAdded += GuildBanAdded;//Done 100%
-            c.GuildBanRemoved += GuildBanRemoved; //Done 100%
-
-            c.ChannelPinsUpdated += ChannelPinsUpdated; //Done 100%
-            c.VoiceStateUpdated += VoiceStateUpdated; //Done 100%
-
-            c.MessageCreated += MessageCreated;
-            c.MessageUpdated += MessageUpdated;//Done 100% //Not with audit log
-            c.MessageDeleted += MessageDeleted; //Done 100%
-
-            c.GuildRoleCreated += GuildRoleCreated; //Done 100%
-            c.GuildRoleUpdated += GuildRoleUpdated; //Done 100%
-            c.GuildRoleDeleted += GuildRoleDeleted; //Done 100%
-            c.UserUpdated += UserUpdated;
-
-            c.ChannelCreated += ChannelCreated; //Done 100%
-            c.ChannelUpdated += ChannelUpdated; //Done 100%
-            c.ChannelDeleted += ChannelDeleted; //Done 100%
-
-            c.GuildUpdated += GuildUpdated; //Done 100%
-            c.WebhooksUpdated += WebhooksUpdated; //Done 100%
-            c.GuildIntegrationsUpdated += IntegrationsUpdated; //Done 100% probably
-
-            c.InviteCreated += InviteCreated; //Done 100% //Should implement invite system
-            c.InviteDeleted += InviteDeleted; //Done 100%
-
         }
-
-        
+        protected override async Task SaveAsync()
+        {
+            try
+            {
+                var jsonString = JsonConvert.SerializeObject(this);
+                await File.WriteAllTextAsync(ConfigNames.GUILDEVENTS, jsonString);
+            }
+            catch (Exception e)
+            {
+                Console.Error.WriteLine("Не удалось сохранить конфиг аудит лога " + e.Message);
+            }
+        }
+        #endregion
 
         #region Commands
         public async Task SetChannelAsync(DiscordChannel channel)
         {
-            auditChannel = channel;
-            channelId = channel.Id;
+            _auditChannel = channel;
+            _channelId = channel.Id;
             await SaveAsync();
         }
-
-
         public async Task<bool> TryBlacklistWordAsync(string p)
         {
             if (blacklistedWords.Contains(p)) return false;
@@ -144,36 +138,22 @@ namespace Volodya
             return phraseResponses.Keys.ToArray();
         }
         #endregion
-        #region Config Management
-        private async Task SaveAsync()
-        {
-            try
-            {
-                var jsonString = JsonConvert.SerializeObject(this);
-                await File.WriteAllTextAsync(ConfigNames.GUILDEVENTS, jsonString);
-            }
-            catch (Exception e)
-            {
-                Console.Error.WriteLine("Не удалось сохранить конфиг аудит лога " + e.Message);
-            }
-        }
-        #endregion
         #region Actions
         #region Guild Actions
         private async Task IntegrationsUpdated(DiscordClient sender, GuildIntegrationsUpdateEventArgs e)
         {
             var intsEntry = await GetNewEntryAsync() as DiscordAuditLogIntegrationEntry;
             if (intsEntry == null) return;
-            entryBuilder = EmbedBuilderExtensions.CreateForAudit(intsEntry, "Обновление интеграций");
-            entryBuilder.SetDescription("Для более подробной информации обратитесь в журнал аудита");
-            await SendMessageToAuditAsync(true, embed: entryBuilder);
+            _entryBuilder = EmbedBuilderExtensions.CreateForAudit(intsEntry, "Обновление интеграций");
+            _entryBuilder.SetDescription("Для более подробной информации обратитесь в журнал аудита");
+            await SendMessageToAuditAsync(true, embed: _entryBuilder);
 
         }
         private async Task WebhooksUpdated(DiscordClient sender, WebhooksUpdateEventArgs e)
         {
             var webhookEntry = await GetNewEntryAsync() as DiscordAuditLogWebhookEntry;
 
-            entryBuilder = EmbedBuilderExtensions.CreateForAudit(webhookEntry);
+            _entryBuilder = EmbedBuilderExtensions.CreateForAudit(webhookEntry);
             string action;
             switch (webhookEntry.ActionType)
             {
@@ -185,9 +165,9 @@ namespace Volodya
                 case (AuditLogActionType.WebhookUpdate):
                     {
                         action = "Обновление";
-                        entryBuilder.AddNamePropertyChange(webhookEntry.NameChange);
-                        entryBuilder.AddChannelPropertyChange("Канал", webhookEntry.ChannelChange);
-                        entryBuilder.AddPropertyChange("Аватар", webhookEntry.AvatarHashChange);
+                        _entryBuilder.AddNamePropertyChange(webhookEntry.NameChange);
+                        _entryBuilder.AddChannelPropertyChange("Канал", webhookEntry.ChannelChange);
+                        _entryBuilder.AddPropertyChange("Аватар", webhookEntry.AvatarHashChange);
                     }
                     break;
                 case (AuditLogActionType.WebhookDelete):
@@ -198,100 +178,100 @@ namespace Volodya
 
                 default: return;
             }
-            entryBuilder.SetTitle(action + " вебхука");
-            entryBuilder.SetDescription($"{action} вебхука {webhookEntry.Target.Name}");
+            _entryBuilder.SetTitle(action + " вебхука");
+            _entryBuilder.SetDescription($"{action} вебхука {webhookEntry.Target.Name}");
 
-            await SendMessageToAuditAsync(embed: entryBuilder);
+            await SendMessageToAuditAsync(embed: _entryBuilder);
         }
         private async Task GuildUpdated(DiscordClient sender, GuildUpdateEventArgs e)
         {
             var guEntry = await GetNewEntryAsync() as DiscordAuditLogGuildEntry;
             if (guEntry == null) return; //Defense from something(xD)
 
-            entryBuilder = EmbedBuilderExtensions.CreateForAudit(guEntry, "Обновление параметров сервера");
+            _entryBuilder = EmbedBuilderExtensions.CreateForAudit(guEntry, "Обновление параметров сервера");
 
-            entryBuilder.AddNamePropertyChange(guEntry.NameChange);
-            entryBuilder.AddPropertyChange("Регион", guEntry.RegionChange);
-            entryBuilder.AddPropertyChange("Уровень фильтрации откровенного контента", guEntry.ExplicitContentFilterChange);
-            entryBuilder.AddPropertyChange("Требования к верификации", guEntry.VerificationLevelChange);
-            entryBuilder.AddPropertyChange("Аватар", guEntry.IconChange);
-            entryBuilder.AddPropertyChange("Стандартные настройки уведомлений", guEntry.NotificationSettingsChange);
-            entryBuilder.AddPropertyChange("Двухфакторная аутентификация", guEntry.MfaLevelChange);
-            entryBuilder.AddPropertyChange("Изображение при инвайте", guEntry.SplashChange);
+            _entryBuilder.AddNamePropertyChange(guEntry.NameChange);
+            _entryBuilder.AddPropertyChange("Регион", guEntry.RegionChange);
+            _entryBuilder.AddPropertyChange("Уровень фильтрации откровенного контента", guEntry.ExplicitContentFilterChange);
+            _entryBuilder.AddPropertyChange("Требования к верификации", guEntry.VerificationLevelChange);
+            _entryBuilder.AddPropertyChange("Аватар", guEntry.IconChange);
+            _entryBuilder.AddPropertyChange("Стандартные настройки уведомлений", guEntry.NotificationSettingsChange);
+            _entryBuilder.AddPropertyChange("Двухфакторная аутентификация", guEntry.MfaLevelChange);
+            _entryBuilder.AddPropertyChange("Изображение при инвайте", guEntry.SplashChange);
 
-            entryBuilder.AddChannelPropertyChange("Афк", guEntry.AfkChannelChange);
-            entryBuilder.AddChannelPropertyChange("Системный", guEntry.SystemChannelChange);
+            _entryBuilder.AddChannelPropertyChange("Афк", guEntry.AfkChannelChange);
+            _entryBuilder.AddChannelPropertyChange("Системный", guEntry.SystemChannelChange);
 
-            await SendMessageToAuditAsync(embed: entryBuilder);
+            await SendMessageToAuditAsync(embed: _entryBuilder);
         }
         #endregion
         #region Channel Actions
         private async Task ChannelPinsUpdated(DiscordClient sender, ChannelPinsUpdateEventArgs e)
         {
             var pinEntry = await GetNewEntryAsync() as DiscordAuditLogMessagePinEntry;
-            entryBuilder = EmbedBuilderExtensions.CreateForAudit(pinEntry);
+            _entryBuilder = EmbedBuilderExtensions.CreateForAudit(pinEntry);
             var action = pinEntry.ActionType == AuditLogActionType.MessagePin ? "Закрепление" : "Открепление";
-            entryBuilder.SetTitle(action + " сообщения");
-            entryBuilder.SetDescription($"{action} сообщения в канале {pinEntry.Channel.Name}");
+            _entryBuilder.SetTitle(action + " сообщения");
+            _entryBuilder.SetDescription($"{action} сообщения в канале {pinEntry.Channel.Name}");
             var msg = await pinEntry.Channel.GetMessageAsync(pinEntry.Message.Id);
 
-            entryBuilder.AddMesage(msg);
-            entryBuilder.AddField("Прямая ссылка", msg.JumpLink.AbsoluteUri);
+            _entryBuilder.AddMesage(msg);
+            _entryBuilder.AddField("Прямая ссылка", msg.JumpLink.AbsoluteUri);
 
-            await SendMessageToAuditAsync(embed: entryBuilder);
+            await SendMessageToAuditAsync(embed: _entryBuilder);
         }
         private async Task VoiceStateUpdated(DiscordClient sender, VoiceStateUpdateEventArgs e)
         {
-            newEntry = await GetNewEntryAsync();
-            if (newEntry.ActionType == AuditLogActionType.MemberUpdate)
+            _newEntry = await GetNewEntryAsync();
+            if (_newEntry.ActionType == AuditLogActionType.MemberUpdate)
             {
-                var muEntry = newEntry as DiscordAuditLogMemberUpdateEntry;
-                entryBuilder = EmbedBuilderExtensions.CreateForAudit(newEntry);
-                entryBuilder.SetTitle("Обновление пользователя");
-                entryBuilder.AddPropertyChange("Мут", muEntry.MuteChange);
-                entryBuilder.AddPropertyChange("Заглушение", muEntry.DeafenChange);
+                var muEntry = _newEntry as DiscordAuditLogMemberUpdateEntry;
+                _entryBuilder = EmbedBuilderExtensions.CreateForAudit(_newEntry);
+                _entryBuilder.SetTitle("Обновление пользователя");
+                _entryBuilder.AddPropertyChange("Мут", muEntry.MuteChange);
+                _entryBuilder.AddPropertyChange("Заглушение", muEntry.DeafenChange);
             }
             else return;
-            await SendMessageToAuditAsync(true, embed: entryBuilder);
+            await SendMessageToAuditAsync(true, embed: _entryBuilder);
         }
         private async Task ChannelCreated(DiscordClient sender, ChannelCreateEventArgs e)
         {
             var ccEntry = await GetNewEntryAsync() as DiscordAuditLogChannelEntry;
             string commonType = ccEntry.Target.Type.ToRusCommon();
             string type = ccEntry.Target.Type == ChannelType.Category ? "" : $", тип канала: {ccEntry.Target.Type.ToRusString()}";
-            entryBuilder = EmbedBuilderExtensions.CreateForAudit(ccEntry, $"Создание {commonType}");
-            entryBuilder.SetDescription($"Создание {commonType} {ccEntry.NameChange.After} {type}");
-            await SendMessageToAuditAsync(embed: entryBuilder);
+            _entryBuilder = EmbedBuilderExtensions.CreateForAudit(ccEntry, $"Создание {commonType}");
+            _entryBuilder.SetDescription($"Создание {commonType} {ccEntry.NameChange.After} {type}");
+            await SendMessageToAuditAsync(embed: _entryBuilder);
 
         }
         private async Task ChannelUpdated(DiscordClient sender, ChannelUpdateEventArgs e)
         {
 
-            newEntry = await GetNewEntryAsync();
-            entryBuilder = new DiscordEmbedBuilder();
+            _newEntry = await GetNewEntryAsync();
+            _entryBuilder = new DiscordEmbedBuilder();
 
             string commonType = e.ChannelAfter.Type.ToRusCommon();
             string channelName = e.ChannelAfter.Name;
 
 
-            var entryType = newEntry?.ActionType;
+            var entryType = _newEntry?.ActionType;
             bool checkForSameEntry = false;
             switch (entryType)
             {
                 case (AuditLogActionType.ChannelUpdate):
                     {
                         checkForSameEntry = true;//Important because in second case we have defense by ow == null, and if any small updates happen don't wanna send same channel update entries
-                        var cuEntry = newEntry as DiscordAuditLogChannelEntry;
-                        entryBuilder = EmbedBuilderExtensions.CreateForAudit(cuEntry,
+                        var cuEntry = _newEntry as DiscordAuditLogChannelEntry;
+                        _entryBuilder = EmbedBuilderExtensions.CreateForAudit(cuEntry,
                             $"Обновление параметров {commonType}",
                             $"Обновлены параметры у {commonType} {channelName}");
 
-                        entryBuilder.AddNamePropertyChange(cuEntry.NameChange);
+                        _entryBuilder.AddNamePropertyChange(cuEntry.NameChange);
 
-                        entryBuilder.AddPropertyChange("Битрейт", cuEntry.BitrateChange);
-                        entryBuilder.AddPropertyChange("NSFW", cuEntry.NsfwChange);
-                        entryBuilder.AddPropertyChange("Слоумод", cuEntry.PerUserRateLimitChange);
-                        entryBuilder.AddPropertyChange("Тема", cuEntry.TopicChange);
+                        _entryBuilder.AddPropertyChange("Битрейт", cuEntry.BitrateChange);
+                        _entryBuilder.AddPropertyChange("NSFW", cuEntry.NsfwChange);
+                        _entryBuilder.AddPropertyChange("Слоумод", cuEntry.PerUserRateLimitChange);
+                        _entryBuilder.AddPropertyChange("Тема", cuEntry.TopicChange);
                         break;
                     }
                 default: // case if overwrite entry
@@ -299,40 +279,40 @@ namespace Volodya
                         var owsBefore = e.ChannelBefore.PermissionOverwrites;
                         var owsAfter = e.ChannelAfter.PermissionOverwrites;
                         OverwriteUpdateInformation owUpdInfo = new OverwriteUpdateInformation(owsBefore, owsAfter);
-                        if (newEntry != null)
+                        if (_newEntry != null)
                         {
-                            entryBuilder = EmbedBuilderExtensions.CreateForAudit(newEntry);
-                            entryBuilder.AddField("Изменённые оверврайты", string.Join("\n", owUpdInfo.Changes));
+                            _entryBuilder = EmbedBuilderExtensions.CreateForAudit(_newEntry);
+                            _entryBuilder.AddField("Изменённые оверврайты", string.Join("\n", owUpdInfo.Changes));
                         }
 
                         var ow = owUpdInfo.GetAffectedOverwrite();
                         if (ow == null) return; //If we don't have overwriteupdates at all
 
-                        entryBuilder.SetTitle($"{owUpdInfo.Action} оверврайтов");
+                        _entryBuilder.SetTitle($"{owUpdInfo.Action} оверврайтов");
 
                         string subj = ow.Type == OverwriteType.Role ?
                             "роли " + ow.GetRoleAsync().Result.Name :
                             "пользователя " + ow.GetMemberAsync().Result.Username;
 
-                        entryBuilder.SetDescription($"{owUpdInfo.Action} оверврайтов для {subj} у {e.ChannelAfter.Type.ToRusCommon()} {channelName} ");
+                        _entryBuilder.SetDescription($"{owUpdInfo.Action} оверврайтов для {subj} у {e.ChannelAfter.Type.ToRusCommon()} {channelName} ");
                     }
                     break;
             }
-            await SendMessageToAuditAsync(checkForSameEntry, embed: entryBuilder); //Don't set true on defense from same entry,
+            await SendMessageToAuditAsync(checkForSameEntry, embed: _entryBuilder); //Don't set true on defense from same entry,
 
         }
         private async Task ChannelDeleted(DiscordClient sender, ChannelDeleteEventArgs e)
         {
-            newEntry = await GetNewEntryAsync();
-            var cdEntry = newEntry as DiscordAuditLogChannelEntry;
+            _newEntry = await GetNewEntryAsync();
+            var cdEntry = _newEntry as DiscordAuditLogChannelEntry;
             if (cdEntry == null) return; // Defense from cases when we delete category with channels under it
             var cType = cdEntry.Target.Type;
 
-            entryBuilder = EmbedBuilderExtensions.CreateForAudit(cdEntry, "Удаление " + cType.ToRusCommon());
+            _entryBuilder = EmbedBuilderExtensions.CreateForAudit(cdEntry, "Удаление " + cType.ToRusCommon());
             var shortDesc = $"Удаление {cType.ToRusCommon()} {cdEntry.Target.Name}";
             var desc = cType == ChannelType.Category ? shortDesc : shortDesc + $", тип канала: {cType.ToRusString()}";
-            entryBuilder.SetDescription(desc);
-            await SendMessageToAuditAsync(true, embed: entryBuilder);
+            _entryBuilder.SetDescription(desc);
+            await SendMessageToAuditAsync(true, embed: _entryBuilder);
         }
 
         #endregion
@@ -341,31 +321,31 @@ namespace Volodya
         {
             var rcEntry = await GetNewEntryAsync() as DiscordAuditLogRoleUpdateEntry;
 
-            entryBuilder = EmbedBuilderExtensions.CreateForAudit(rcEntry, "Создание роли", $"Создана роль {rcEntry.Target.Name}");
+            _entryBuilder = EmbedBuilderExtensions.CreateForAudit(rcEntry, "Создание роли", $"Создана роль {rcEntry.Target.Name}");
 
-            await SendMessageToAuditAsync(embed: entryBuilder);
+            await SendMessageToAuditAsync(embed: _entryBuilder);
         }
         private async Task GuildRoleUpdated(DiscordClient sender, GuildRoleUpdateEventArgs e)
         {
 
             var roleUpdEntry = await GetNewEntryAsync() as DiscordAuditLogRoleUpdateEntry;
             if (roleUpdEntry == null) return;
-            entryBuilder = EmbedBuilderExtensions.CreateForAudit(roleUpdEntry,
+            _entryBuilder = EmbedBuilderExtensions.CreateForAudit(roleUpdEntry,
                 "Обновление роли",
                 $"Обновлена роль {roleUpdEntry.Target.Name}");
-            entryBuilder.AddNamePropertyChange(roleUpdEntry.NameChange);
+            _entryBuilder.AddNamePropertyChange(roleUpdEntry.NameChange);
 
-            entryBuilder.AddPropertyChange("Возможность упоминания", roleUpdEntry.MentionableChange);
-            entryBuilder.AddPropertyChange("Уникальность", roleUpdEntry.HoistChange);
-            entryBuilder.AddPropertyChange("Позиция", roleUpdEntry.PositionChange);
+            _entryBuilder.AddPropertyChange("Возможность упоминания", roleUpdEntry.MentionableChange);
+            _entryBuilder.AddPropertyChange("Уникальность", roleUpdEntry.HoistChange);
+            _entryBuilder.AddPropertyChange("Позиция", roleUpdEntry.PositionChange);
 
             if (roleUpdEntry.ColorChange != null)
-                entryBuilder.AddField("Измёнён цвет", roleUpdEntry.Target.Mention, true);
+                _entryBuilder.AddField("Измёнён цвет", roleUpdEntry.Target.Mention, true);
 
             if (roleUpdEntry.PermissionChange != null)
-                entryBuilder.AddField("Обновление привилегий", roleUpdEntry.PermissionChange.ToRusString());
+                _entryBuilder.AddField("Обновление привилегий", roleUpdEntry.PermissionChange.ToRusString());
 
-            await SendMessageToAuditAsync(embed: entryBuilder);
+            await SendMessageToAuditAsync(embed: _entryBuilder);
         }
 
 
@@ -373,8 +353,8 @@ namespace Volodya
         {
 
             var roleDelEntry = await GetNewEntryAsync() as DiscordAuditLogRoleUpdateEntry;
-            entryBuilder = EmbedBuilderExtensions.CreateForAudit(roleDelEntry, "Удаление роли", $"Удалена роль {roleDelEntry.Target.Mention}");
-            await SendMessageToAuditAsync(embed: entryBuilder);
+            _entryBuilder = EmbedBuilderExtensions.CreateForAudit(roleDelEntry, "Удаление роли", $"Удалена роль {roleDelEntry.Target.Mention}");
+            await SendMessageToAuditAsync(embed: _entryBuilder);
         }
 
         #endregion
@@ -382,19 +362,19 @@ namespace Volodya
         private async Task GuildBanAdded(DiscordClient sender, GuildBanAddEventArgs e)
         {
             var banEntry = await GetNewEntryAsync() as DiscordAuditLogBanEntry;
-            entryBuilder = EmbedBuilderExtensions.CreateForAudit(banEntry, "Бан", $"Пользователь {banEntry.Target.DisplayName} был забанен");
+            _entryBuilder = EmbedBuilderExtensions.CreateForAudit(banEntry, "Бан", $"Пользователь {banEntry.Target.DisplayName} был забанен");
 
             var reason = banEntry.Reason.IsRelevant() ? banEntry.Reason : "Не указана";
-            entryBuilder.AddField("Причина", reason);
+            _entryBuilder.AddField("Причина", reason);
 
-            await SendMessageToAuditAsync(embed: entryBuilder);
+            await SendMessageToAuditAsync(embed: _entryBuilder);
         }
 
         private async Task GuildBanRemoved(DiscordClient sender, GuildBanRemoveEventArgs e)
         {
             var unbanEntry = await GetNewEntryAsync() as DiscordAuditLogBanEntry;
-            entryBuilder = EmbedBuilderExtensions.CreateForAudit(unbanEntry, "Разбан", $"Пользователь {unbanEntry.Target.Username} был разбанен");
-            await SendMessageToAuditAsync(embed: entryBuilder);
+            _entryBuilder = EmbedBuilderExtensions.CreateForAudit(unbanEntry, "Разбан", $"Пользователь {unbanEntry.Target.Username} был разбанен");
+            await SendMessageToAuditAsync(embed: _entryBuilder);
         }
 
         #endregion
@@ -421,7 +401,7 @@ namespace Volodya
         private async Task MessageUpdated(DiscordClient sender, MessageUpdateEventArgs e)
         {
             if (e.Author == null || e.Author.IsBot) return;
-            entryBuilder = new DiscordEmbedBuilder
+            _entryBuilder = new DiscordEmbedBuilder
             {
                 Author = new DiscordEmbedBuilder.EmbedAuthor { Name = e.Author.Username, IconUrl = e.Author.AvatarUrl },
                 Title = $"Сообщение отредактировано в канале {e.Message.Channel.Name}"
@@ -433,9 +413,9 @@ namespace Volodya
                 e.MessageBefore.Content :
                 "Информация о старом содержании некэширована";
 
-            entryBuilder.AddBeforeAfter("Содержание", oldContent, e.Message.Content);
-            entryBuilder.AddField("Прямая ссылка", e.Message.JumpLink.AbsoluteUri);
-            await SendMessageToAuditAsync(embed: entryBuilder);
+            _entryBuilder.AddBeforeAfter("Содержание", oldContent, e.Message.Content);
+            _entryBuilder.AddField("Прямая ссылка", e.Message.JumpLink.AbsoluteUri);
+            await SendMessageToAuditAsync(embed: _entryBuilder);
         }
 
         private async Task MessageDeleted(DiscordClient sender, MessageDeleteEventArgs e)
@@ -475,29 +455,29 @@ namespace Volodya
         private async Task InviteCreated(DiscordClient sender, InviteCreateEventArgs e)
         {
             var invCreateEntry = await GetNewEntryAsync() as DiscordAuditLogInviteEntry;
-            entryBuilder = EmbedBuilderExtensions.CreateForAudit(invCreateEntry, "Создание приглашения");
+            _entryBuilder = EmbedBuilderExtensions.CreateForAudit(invCreateEntry, "Создание приглашения");
             var invite = e.Invite;
-            entryBuilder.SetDescription("Создание приглашения " + invite.Code);
+            _entryBuilder.SetDescription("Создание приглашения " + invite.Code);
             if (invite.Channel != null)
-                entryBuilder.AddField("Предназначен для: ", invite.Channel.Name);
+                _entryBuilder.AddField("Предназначен для: ", invite.Channel.Name);
 
-            entryBuilder.AddField("Время истечения", (invite.MaxAge/3600).ToString() + 'ч');
+            _entryBuilder.AddField("Время истечения", (invite.MaxAge/3600).ToString() + 'ч');
 
-            entryBuilder.AddField("Максимальное количество использований", invite.MaxUses.ToString());
+            _entryBuilder.AddField("Максимальное количество использований", invite.MaxUses.ToString());
 
-            entryBuilder.AddField("Членство только на время приглашения", invite.IsTemporary.ToString());
+            _entryBuilder.AddField("Членство только на время приглашения", invite.IsTemporary.ToString());
 
-            await SendMessageToAuditAsync(embed: entryBuilder);
+            await SendMessageToAuditAsync(embed: _entryBuilder);
         }
         private async Task InviteDeleted(DiscordClient sender, InviteDeleteEventArgs e)
         {
             var invDelEntry = await GetNewEntryAsync() as DiscordAuditLogInviteEntry;
-            entryBuilder = EmbedBuilderExtensions.CreateForAudit(invDelEntry, "Удаление приглашения");
+            _entryBuilder = EmbedBuilderExtensions.CreateForAudit(invDelEntry, "Удаление приглашения");
             var invite = e.Invite;
-            entryBuilder.SetDescription("Удаление приглашения " + invite.Code);
-            entryBuilder.AddField("Количество использований", invite.Uses.ToString());
+            _entryBuilder.SetDescription("Удаление приглашения " + invite.Code);
+            _entryBuilder.AddField("Количество использований", invite.Uses.ToString());
 
-            await SendMessageToAuditAsync(embed: entryBuilder);
+            await SendMessageToAuditAsync(embed: _entryBuilder);
         }
         #endregion
         #region Member Actions
@@ -506,7 +486,7 @@ namespace Volodya
             var name = e.Member.Username;
             if (HasBlacklistedWord(name))
             {
-                await auditChannel.SendMessageAsync("Пользователь в теории забанен" + e.Member.Mention);
+                await _auditChannel.SendMessageAsync("Пользователь в теории забанен" + e.Member.Mention);
 
                 //await e.Member.BanAsync(reason: "Запрещённое слово в никнейме");
                 return;
@@ -521,56 +501,56 @@ namespace Volodya
         private async Task UserUpdated(DiscordClient sender, UserUpdateEventArgs e)
         {
 
-            var member = await defaultGuild.GetMemberAsync(e.UserAfter.Id);
+            var member = await DefaultGuild.GetMemberAsync(e.UserAfter.Id);
             if (member == null) return;
-            entryBuilder = new DiscordEmbedBuilder();
-            entryBuilder.SetAuthor(e.UserAfter);
-            entryBuilder.SetTitle("Обновление параметров пользователя");
+            _entryBuilder = new DiscordEmbedBuilder();
+            _entryBuilder.SetAuthor(e.UserAfter);
+            _entryBuilder.SetTitle("Обновление параметров пользователя");
 
             if (e.UserBefore.Username != e.UserAfter.Username)
             {
                 if (HasBlacklistedWord(e.UserAfter.Username))
                 {
-                    await auditChannel.SendMessageAsync("Пользователь в теории забанен" + member.Mention);
+                    await _auditChannel.SendMessageAsync("Пользователь в теории забанен" + member.Mention);
                     //await member.BanAsync(reason: "Запрещённое слово в никнейме");
                     return;
                 }
-                entryBuilder.AddBeforeAfter("Имя", e.UserBefore.Username, e.UserAfter.Username);
+                _entryBuilder.AddBeforeAfter("Имя", e.UserBefore.Username, e.UserAfter.Username);
             }
             if (e.UserBefore.Discriminator != e.UserAfter.Discriminator)
             {
-                entryBuilder.AddBeforeAfter("Дискриминатор", e.UserBefore.Discriminator, e.UserAfter.Discriminator);
+                _entryBuilder.AddBeforeAfter("Дискриминатор", e.UserBefore.Discriminator, e.UserAfter.Discriminator);
             }
             if (e.UserBefore.AvatarUrl != null && e.UserBefore.AvatarUrl != e.UserAfter.AvatarUrl)
             {
-                entryBuilder.SetTitle("Пользователь обновил аватар");
+                _entryBuilder.SetTitle("Пользователь обновил аватар");
                 try
                 {
-                    entryBuilder.WithImageUrl(e.UserAfter.AvatarUrl);
+                    _entryBuilder.WithImageUrl(e.UserAfter.AvatarUrl);
                 }
                 catch
                 {
-                    entryBuilder.SetDescription("Не удалось установить ссылку на изображение");
+                    _entryBuilder.SetDescription("Не удалось установить ссылку на изображение");
                 }
             }
-            await SendMessageToAuditAsync(embed: entryBuilder);
+            await SendMessageToAuditAsync(embed: _entryBuilder);
 
         }
         private async Task GuildMemberUpdated(DiscordClient sender, GuildMemberUpdateEventArgs e)
         {
             var muEntry = await GetNewEntryAsync() as DiscordAuditLogMemberUpdateEntry;
             if (muEntry == null) return;
-            entryBuilder = EmbedBuilderExtensions.CreateForAudit(muEntry, $"Изменение пользователя {muEntry.Target.Username}");
+            _entryBuilder = EmbedBuilderExtensions.CreateForAudit(muEntry, $"Изменение пользователя {muEntry.Target.Username}");
             if (muEntry.UserResponsible.IsBot) return;
             if(HasBlacklistedWord(muEntry.NicknameChange?.After))
             {
                 await muEntry.Target.ModifyAsync((x) => x.Nickname = muEntry.Target.Username);
                 return;
             }
-            entryBuilder.AddNamePropertyChange(muEntry.NicknameChange);
-            entryBuilder.AddRoles("Добавленные", muEntry.AddedRoles);
-            entryBuilder.AddRoles("Удалённые", muEntry.RemovedRoles);
-            await SendMessageToAuditAsync(true, embed: entryBuilder);
+            _entryBuilder.AddNamePropertyChange(muEntry.NicknameChange);
+            _entryBuilder.AddRoles("Добавленные", muEntry.AddedRoles);
+            _entryBuilder.AddRoles("Удалённые", muEntry.RemovedRoles);
+            await SendMessageToAuditAsync(true, embed: _entryBuilder);
 
         }
         private async Task GuildMemberRemoved(DiscordClient c, GuildMemberRemoveEventArgs e)
@@ -579,19 +559,19 @@ namespace Volodya
             
             if (kickEntry != null)
             {
-                entryBuilder = EmbedBuilderExtensions.CreateForAudit(kickEntry, "Кик", $"Пользователь {kickEntry.Target.Username} был кикнут");
+                _entryBuilder = EmbedBuilderExtensions.CreateForAudit(kickEntry, "Кик", $"Пользователь {kickEntry.Target.Username} был кикнут");
                 var reason = kickEntry.Reason.IsRelevant() ? kickEntry.Reason : "Не указана";
-                entryBuilder.AddField("Причина", reason);
-                await SendMessageToAuditAsync(embed: entryBuilder);
+                _entryBuilder.AddField("Причина", reason);
+                await SendMessageToAuditAsync(embed: _entryBuilder);
             }
             else
             {
                 var banEntry = await GetNewEntryAsync() as DiscordAuditLogBanEntry;
                 if (banEntry != null) return;
-                entryBuilder = new DiscordEmbedBuilder();
-                entryBuilder.SetAuthor(e.Member);
-                entryBuilder.SetTitle("Пользователь покинул нас");
-                entryBuilder.SetDescription($"{e.Member.Mention} joined {e.Member.JoinedAt.LocalDateTime}");
+                _entryBuilder = new DiscordEmbedBuilder();
+                _entryBuilder.SetAuthor(e.Member);
+                _entryBuilder.SetTitle("Пользователь покинул нас");
+                _entryBuilder.SetDescription($"{e.Member.Mention} joined {e.Member.JoinedAt.LocalDateTime}");
                 await SendMessageToAuditAsync(content: $"Пользователь {e.Member.Mention} покинул нас");
             }
 
@@ -599,6 +579,38 @@ namespace Volodya
         #endregion
         #endregion
         #region Private Methods
+        private void SubscribeToAllEvents()
+        {
+            Client.GuildMemberAdded += GuildMemberAdded;
+            Client.GuildMemberUpdated += GuildMemberUpdated;
+            Client.GuildMemberRemoved += GuildMemberRemoved;
+
+            Client.GuildBanAdded += GuildBanAdded;
+            Client.GuildBanRemoved += GuildBanRemoved;
+            Client.ChannelPinsUpdated += ChannelPinsUpdated;
+            Client.VoiceStateUpdated += VoiceStateUpdated;
+
+            Client.MessageCreated += MessageCreated;
+            Client.MessageUpdated += MessageUpdated;
+            Client.MessageDeleted += MessageDeleted;
+
+            Client.GuildRoleCreated += GuildRoleCreated;
+            Client.GuildRoleUpdated += GuildRoleUpdated;
+            Client.GuildRoleDeleted += GuildRoleDeleted;
+
+            Client.UserUpdated += UserUpdated;
+            Client.ChannelCreated += ChannelCreated;
+            Client.ChannelUpdated += ChannelUpdated;
+            Client.ChannelDeleted += ChannelDeleted;
+
+            Client.GuildUpdated += GuildUpdated;
+            Client.WebhooksUpdated += WebhooksUpdated;
+            Client.GuildIntegrationsUpdated += IntegrationsUpdated;
+
+            Client.InviteCreated += InviteCreated;
+            Client.InviteDeleted += InviteDeleted;
+        }
+
         private bool HasBlacklistedWord(string name)
         {
             return blacklistedWords.Any((x) => name.Contains(x));
@@ -607,22 +619,22 @@ namespace Volodya
         {
             try
             {
-                var audit = await defaultGuild.GetAuditLogsAsync(1);
-                newEntry = audit.First();
-                return newEntry;
+                var audit = await DefaultGuild.GetAuditLogsAsync(1);
+                _newEntry = audit.First();
+                return _newEntry;
             }
             catch
             {
-                newEntry = null;
-                return newEntry; //Case if we have overwrite create or overwrite delete
+                _newEntry = null;
+                return _newEntry;
             }
         }
 
         private async Task SendMessageToAuditAsync(bool checkForSameEntry = false, string content = null, DiscordEmbedBuilder embed = null)
         {
-            if (auditChannel == null || (checkForSameEntry && newEntry.Id == lastHandledEntry?.Id)) return;
-            lastHandledEntry = newEntry;
-            await auditChannel.SendMessageAsync(embed: embed, content: content);
+            if (_auditChannel == null || (checkForSameEntry && _newEntry.Id == _lastHandledEntry?.Id)) return;
+            _lastHandledEntry = _newEntry;
+            await _auditChannel.SendMessageAsync(embed: embed, content: content);
         }
 
         #endregion

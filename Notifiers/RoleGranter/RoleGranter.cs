@@ -10,36 +10,69 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using LSSKeeper.Main;
 
 namespace Volodya.Commands
 {
     [JsonObject(MemberSerialization = MemberSerialization.Fields)]
-    public class RoleGranter
+    public class RoleGranter : KeeperModule
     {
         [JsonIgnore]
-        DiscordGuild defaultGuild;
-        [JsonIgnore]
-        DiscordMessage rolesMessage;
+        private DiscordMessage rolesMessage;
 
-        #region Config Params
-        List<RoleInfo> rolesInfo = new List<RoleInfo>();
-        ulong? channelId;
-        ulong? rolesMessageId;
-        #endregion
+        private List<RoleInfo> rolesInfo = new List<RoleInfo>();
+        private ulong? channelId;
+        private ulong? rolesMessageId;
 
-        private string GetRolesString(DiscordClient c)
+        #region Module Methods
+        public override async Task InitializeAsync(DiscordClient c, DiscordGuild guild)
         {
-            if (rolesInfo.Count == 0) return "Empty";
-
-            StringBuilder builder = new StringBuilder("");
-
-            foreach (var i in rolesInfo)
-            {
-                var role = defaultGuild.GetRole(i.roleId);
-                builder.Append($"{role.Mention} - {i.emojiName.ToEmoji(c)} - {i.desc}\n");
-            }
-            return builder.ToString();
+            await base.InitializeAsync(c, guild);
+            Client.MessageReactionAdded += GrantRoleAsync;
+            Client.MessageReactionRemoved += RevokeRoleAsync;
         }
+        public override void RegisterCommands(CommandsNextExtension commands)
+        {
+            RoleGranterCommands.RGranter = this;
+            CommandsType = typeof(RoleGranterCommands);
+            base.RegisterCommands(commands);
+        }
+        protected override async Task InitializeConfigAsync()
+        {
+            try
+            {
+                var json = await File.ReadAllTextAsync(ConfigNames.ROLEGRANTER);
+
+                var rgj = JsonConvert.DeserializeObject<RoleGranter>(json);
+                channelId = rgj.channelId;
+                rolesMessageId = rgj.rolesMessageId;
+                if (channelId != null && rolesMessageId != null)
+                {
+                    rolesMessage = await DefaultGuild.GetChannel((ulong)rgj.channelId).GetMessageAsync((ulong)rgj.rolesMessageId);
+                }
+                if (rgj.rolesInfo != null)
+                    rolesInfo = rgj.rolesInfo;
+            }
+            catch (Exception e)
+            {
+                Console.Error.WriteLine("Не удалось инициализировать конфиг выдачи ролей " + e.Message);
+            }
+        }
+
+        protected override async Task SaveAsync()
+        {
+            try
+            {
+                string json = JsonConvert.SerializeObject(this);
+                await File.WriteAllTextAsync(ConfigNames.ROLEGRANTER, json);
+            }
+            catch (Exception e)
+            {
+                Console.Error.WriteLine("Не удалось сохранить конфиг выдачи ролей " + e.Message);
+            }
+
+        }
+        #endregion
 
         #region Commands
         public async Task CreateRoleMessageAsync(CommandContext ctx, string title, string description, string rolesFieldName, string footer)
@@ -56,7 +89,7 @@ namespace Volodya.Commands
             var msg = await ctx.Channel.SendMessageAsync(embed: embedBuilder);
             foreach (var r in rolesInfo)
             {
-                await msg.CreateReactionAsync(r.emojiName.ToEmoji(ctx.Client));
+                await msg.CreateReactionAsync(r.EmojiName.ToEmoji(ctx.Client));
             }
             channelId = msg.ChannelId;
             rolesMessageId = msg.Id;
@@ -67,13 +100,13 @@ namespace Volodya.Commands
         public async Task<RoleAddResult> TryAddRoleAsync(DiscordClient c, DiscordRole role, DiscordEmoji emoji, string desc)
         {
 
-            if (rolesInfo.Any((x) => x.roleId == role.Id)) return RoleAddResult.AlreadyHasRole;
-            else if (rolesInfo.Any((x) => x.emojiName == emoji.Name)) return RoleAddResult.AlreadyHasEmoji;
+            if (rolesInfo.Any((x) => x.RoleID == role.Id)) return RoleAddResult.AlreadyHasRole;
+            else if (rolesInfo.Any((x) => x.EmojiName == emoji.Name)) return RoleAddResult.AlreadyHasEmoji;
 
             RoleInfo ri;
-            ri.roleId = role.Id;
-            ri.emojiName = emoji.Name;
-            ri.desc = desc;
+            ri.RoleID = role.Id;
+            ri.EmojiName = emoji.Name;
+            ri.Description = desc;
             rolesInfo.Add(ri);
             await SaveAsync();
 
@@ -90,8 +123,8 @@ namespace Volodya.Commands
         }
         public async Task<bool> TryRemoveRoleAsync(DiscordClient c, DiscordRole role)
         {
-            if (!rolesInfo.Any((x) => x.roleId == role.Id)) return false;
-            var info = rolesInfo.Where((x) => x.roleId == role.Id).First();
+            if (!rolesInfo.Any((x) => x.RoleID == role.Id)) return false;
+            var info = rolesInfo.Where((x) => x.RoleID == role.Id).First();
             rolesInfo.Remove(info);
             await SaveAsync();
 
@@ -101,7 +134,7 @@ namespace Volodya.Commands
             embedBuilder.Fields[0].Value = GetRolesString(c);
 
             await rolesMessage.ModifyAsync(embed: embedBuilder.Build());
-            await rolesMessage.DeleteReactionAsync(info.emojiName.ToEmoji(c), c.CurrentUser);
+            await rolesMessage.DeleteReactionAsync(info.EmojiName.ToEmoji(c), c.CurrentUser);
             return true;
 
         }
@@ -140,21 +173,19 @@ namespace Volodya.Commands
         #endregion
 
         #region Events
-
-
-        private async Task TryGrantRoleAsync(DiscordClient sender, MessageReactionAddEventArgs e)
+        private async Task GrantRoleAsync(DiscordClient sender, MessageReactionAddEventArgs e)
         {
-            var member = await defaultGuild.GetMemberAsync(e.User.Id);
+            var member = await DefaultGuild.GetMemberAsync(e.User.Id);
             if (member == null || member.IsBot) return;
             DiscordRole role;
             if (!TryGetReactionRole(e.Message, e.Emoji.Name, out role)) return;
             await member.GrantRoleAsync(role);
         }
 
-        private async Task TryRevokeRoleAsync(DiscordClient sender, MessageReactionRemoveEventArgs e)
+        private async Task RevokeRoleAsync(DiscordClient sender, MessageReactionRemoveEventArgs e)
         {
 
-            var member = await defaultGuild.GetMemberAsync(e.User.Id);
+            var member = await DefaultGuild.GetMemberAsync(e.User.Id);
             if (member == null) return;
             DiscordRole role;
             if (!TryGetReactionRole(e.Message, e.Emoji.Name, out role)) return;
@@ -165,57 +196,31 @@ namespace Volodya.Commands
         {
             role = null;
             if (msg.Id != rolesMessage?.Id) return false;
-            role = defaultGuild.GetRole(rolesInfo.Where((x) => x.emojiName == emjName).First().roleId);
+            role = DefaultGuild.GetRole(rolesInfo.Where((x) => x.EmojiName == emjName).First().RoleID);
             return role != null;
         }
         #endregion
 
-        #region ConfigManagement
-        public async Task TryInitializeAsync(DiscordClient c, DiscordGuild defaultGuild)
+        #region Private Methods
+        private string GetRolesString(DiscordClient c)
         {
-            try
-            {
-                var json = await File.ReadAllTextAsync(ConfigNames.ROLEGRANTER);
+            if (rolesInfo.Count == 0) return "Empty";
 
-                var rgj = JsonConvert.DeserializeObject<RoleGranter>(json);
-                channelId = rgj.channelId;
-                rolesMessageId = rgj.rolesMessageId;
-                if (channelId != null && rolesMessageId != null)
-                {
-                    rolesMessage = await defaultGuild.GetChannel((ulong)rgj.channelId).GetMessageAsync((ulong)rgj.rolesMessageId);
-                }
-                if (rgj.rolesInfo != null)
-                    rolesInfo = rgj.rolesInfo;
-            }
-            catch(Exception e)
-            {
-                Console.Error.WriteLine("Не удалось инициализировать конфиг выдачи ролей " + e.Message);
-            }
-            this.defaultGuild = defaultGuild;
-            c.MessageReactionAdded += TryGrantRoleAsync;
-            c.MessageReactionRemoved += TryRevokeRoleAsync;
-        }
-        private async Task SaveAsync()
-        {
-            try
-            {
-                string json = JsonConvert.SerializeObject(this);
-                await File.WriteAllTextAsync(ConfigNames.ROLEGRANTER, json);
-            }
-            catch(Exception e)
-            {
-                Console.Error.WriteLine("Не удалось сохранить конфиг выдачи ролей " + e.Message);
-            }
+            StringBuilder builder = new StringBuilder("");
 
+            foreach (var i in rolesInfo)
+            {
+                var role = DefaultGuild.GetRole(i.RoleID);
+                builder.Append($"{role.Mention} - {i.EmojiName.ToEmoji(c)} - {i.Description}\n");
+            }
+            return builder.ToString();
         }
         #endregion
-        #region Inner Structs
         struct RoleInfo
         {
-            public ulong roleId;
-            public string emojiName;
-            public string desc;
+            public ulong RoleID;
+            public string EmojiName;
+            public string Description;
         }
-        #endregion
     }
 }

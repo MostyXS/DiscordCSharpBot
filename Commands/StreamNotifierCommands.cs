@@ -8,14 +8,9 @@ using System.Threading.Tasks;
 
 namespace Volodya.Commands
 {
-    class StreamNotifierCommands : BaseCommandModule
+    public class StreamNotifierCommands : BaseCommandModule
     {
-        public static StreamNotifier SN { private get; set; }
-
-        public StreamNotifierCommands(string zalupa)
-        {
-
-        }
+        public static StreamNotifier SNotifier { private get; set; }
 
         #region Main Commands 
         [RequirePermissions(DSharpPlus.Permissions.ManageRoles)]
@@ -23,7 +18,7 @@ namespace Volodya.Commands
         [Description("Выставляет текущий канал в качестве канала оповещений о стриме")]
         public async Task SetDefaultStreamChannel(CommandContext ctx)
         {
-            await SN.SetChannelAsync(ctx.Channel);
+            await SNotifier.SetChannelAsync(ctx.Channel);
             await ctx.Channel.SendTempMessageAsync("Успешно установлен как канал для оповещений о стриме");
         }
 
@@ -36,7 +31,7 @@ namespace Volodya.Commands
                 await ctx.Channel.SendTempMessageAsync("Неверное форматирование !SNsetRole @roleName(упоминание роли)");
                 return;
             }
-            await SN.SetStreamerRole(role);
+            await SNotifier.SetStreamerRole(role);
             await ctx.Channel.SendTempMessageAsync($"Роль {role.Mention} успешно установлена как роль транслятора");
 
         }
@@ -54,7 +49,7 @@ namespace Volodya.Commands
             {
                 await ctx.Channel.SendMessageAsync("Неверное форматирование !SNsetEnd \"фраза\"");
             }
-            await SN.SetStreamerInfo(ctx, phrase, Notifications.StreamerInfoType.StartPhrase);
+            await SNotifier.SetStreamerInfo(ctx, phrase, Notifications.StreamerInfoType.StartPhrase);
 
         }
 
@@ -66,7 +61,7 @@ namespace Volodya.Commands
             {
                 await ctx.Channel.SendMessageAsync("Неверное форматирование !SNsetImage {ссылка на картинку}(без фигурных скобок)");
             }
-            await SN.SetStreamerInfo(ctx, phrase, Notifications.StreamerInfoType.ImageUrl);
+            await SNotifier.SetStreamerInfo(ctx, phrase, Notifications.StreamerInfoType.ImageUrl);
         }
 
         [Command("SNsetEnd")]
@@ -78,7 +73,7 @@ namespace Volodya.Commands
             {
                 await ctx.Channel.SendMessageAsync("Неверное форматирование !SNsetEnd \"фраза\"");
             }
-            await SN.SetStreamerInfo(ctx, phrase, Notifications.StreamerInfoType.EndPhrase);
+            await SNotifier.SetStreamerInfo(ctx, phrase, Notifications.StreamerInfoType.EndPhrase);
         }
         #endregion
 
@@ -94,7 +89,7 @@ namespace Volodya.Commands
             {
                 await ctx.Channel.SendMessageAsync("Неверное форматирование !SNsetDefaultStart \"фраза\"");
             }
-            var msgContent = await SN.SetDefaultStreamerInfo(phrase, Notifications.StreamerInfoType.StartPhrase);
+            var msgContent = await SNotifier.SetDefaultStreamerInfo(phrase, Notifications.StreamerInfoType.StartPhrase);
             await ctx.Channel.SendTempMessageAsync(msgContent);
         }
 
@@ -107,7 +102,7 @@ namespace Volodya.Commands
             {
                 await ctx.Channel.SendMessageAsync("Неверное форматирование !SNsetDefaultImage {ссылка на картинку}(без фигурных скобок)");
             }
-            var msgContent = await SN.SetDefaultStreamerInfo(imageUrl, Notifications.StreamerInfoType.ImageUrl);
+            var msgContent = await SNotifier.SetDefaultStreamerInfo(imageUrl, Notifications.StreamerInfoType.ImageUrl);
             await ctx.Channel.SendTempMessageAsync(msgContent);
         }
 
@@ -121,7 +116,7 @@ namespace Volodya.Commands
             {
                 await ctx.Channel.SendMessageAsync("Неверное форматирование !SNsetDefaultEnd \"фраза\"");
             }
-            var msgContent = await SN.SetDefaultStreamerInfo(phrase, Notifications.StreamerInfoType.EndPhrase);
+            var msgContent = await SNotifier.SetDefaultStreamerInfo(phrase, Notifications.StreamerInfoType.EndPhrase);
             await ctx.Channel.SendTempMessageAsync(msgContent);
 
         }
